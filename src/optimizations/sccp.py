@@ -351,36 +351,20 @@ class SCCP:
     def _rewrite_cfg(self):
         assert self.cfg is not None
         cfg = self.cfg
-
+        
         reachable = self.executable_blocks.copy()
-        # Remove unreachable block connections
         for bb in list(cfg.traverse()):
-            if bb not in reachable:
-                # detach from successors
-                for succ in list(bb.succ):
-                    if bb in succ.preds:
-                        succ.preds.remove(bb)
-                bb.succ = []
+            if bb in reachable:
                 continue
+                
+            for pred in bb.preds:
+                pred.succ.remove(bb)
 
-        # Prune infeasible edges on reachable blocks and trim phi inputs
-        for bb in reachable:
-            new_succ: list[BasicBlock] = []
             for succ in list(bb.succ):
-                if (bb, succ) in self.feasible_edges and succ in reachable:
-                    new_succ.append(succ)
-                else:
-                    if bb in succ.preds:
-                        succ.preds.remove(bb)
-            bb.succ = new_succ
-
-        # Trim phi inputs to only feasible predecessors
-        for bb in reachable:
-            pred_labels = {p.label for p in bb.preds}
-            for phi in bb.phi_nodes.values():
-                to_remove = [lbl for lbl in list(phi.rhs.keys()) if lbl not in pred_labels]
-                for lbl in to_remove:
-                    phi.rhs.pop(lbl, None)
+                succ.preds.remove(bb)
+                for phi in succ.phi_nodes.values():
+                    phi.rhs.pop(bb.label, None)
+            bb.succ = []
 
     def _fold_constants(self):
         for bb in list(self.executable_blocks):
@@ -423,10 +407,15 @@ class SCCP:
                         right_lattice = self._get_lattice_of_value(new_right)
                         
                         if left_lattice.is_const() and right_lattice.is_const():
-                            if left_lattice.value == left_lattice.value:
+                            if left_lattice.value == right_lattice.value:
                                 bb.instructions[i] = InstUncondJump(inst.then_label)
+                                # else_block = self.label_to_block[inst.else_label]
+                                # assert else_block in bb.succ, (bb, bb.succ, else_block)
+                                # bb.succ.remove(else_block)
                             else:
                                 bb.instructions[i] = InstUncondJump(inst.else_label)
+                                # then_block = self.label_to_block[inst.then_label]
+                                # bb.succ.remove(then_block)
                     case InstReturn(value):
                         if value is not None:
                             inst.value = self._replace_value(value)

@@ -1,18 +1,10 @@
 func main() -> int {
-    c int = 0;
-    for (j int = 1; j < 10; j = j + 1) {
-        a int = 1; 
-        b int = 0;
-        if (a > 1) {
-            b = 1;
-        } else {
-            b = 2;
+    N int = 0;
+    for (i int = 0; i < 10; i = i + 1) {
+        if (N < 10) { 
+            break;  
         }
-        c = c + b;
+        N = (N + 1) * 2;
     }
-    return c;
-}
-
-func foo() -> int {
-    return 42;
+    return N;
 }

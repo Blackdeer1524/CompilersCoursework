@@ -6,9 +6,15 @@ SVG_FILE ?= graph.svg
 IR_FILE ?= ir.txt
 
 cfg:
-	python main.py --input $(INPUT) --dump-cfg-dot $(DOT_FILE)
+	python main.py --input $(INPUT) --dump-cfg-dot $(DOT_FILE) 
 
 graph: cfg
+	dot -Tsvg $(DOT_FILE) -o $(SVG_FILE) && firefox $(SVG_FILE)
+
+cfg-O1:
+	python main.py --input $(INPUT) --dump-cfg-dot $(DOT_FILE) --disable-sccp --disable-licm --disable-dce --disable-block-cleanup 
+	
+graph-O1: cfg-O1
 	dot -Tsvg $(DOT_FILE) -o $(SVG_FILE) && firefox $(SVG_FILE)
 
 open-graph: graph

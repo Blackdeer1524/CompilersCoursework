@@ -80,7 +80,7 @@ class InstCmp(Instruction):
     else_label: str
     
     def to_IR(self):
-        ir = f"cmp({self.left}, {self.right})\\n"
+        ir = f"cmp({self.left}, {self.right})\n"
         ir += f"if CF == 1 then jmp {self.then_label} else jmp {self.else_label}"
         return ir
 
@@ -147,25 +147,31 @@ class BasicBlock:
     def __repr__(self):
         return self.label
     
-    def to_IR(self):
-        label = f"preds: {self.preds}\n"
-        label += self.label + ":"
+    def to_IR(self) -> str:
+        res = ""
+        res += self.label + ":"
         if self.meta is not None:
-            label += f" [{self.meta}]"
-        label += "\n\n"
+            res += f" ; [{self.meta}]"
+        res += "\n"
 
         if len(self.phi_nodes) > 0:
             for phi in self.phi_nodes.values():
-                label += '  ' + phi.to_IR() + '\n'
-            label += '\n'
+                res += '  ' + phi.to_IR().replace("\n", "\n  ") + '\n'
+            res += '\n'
         
         for inst in self.instructions:
-            label += '  ' + inst.to_IR() + '\n'
+            res += '  ' + inst.to_IR().replace("\n", "\n  ") + '\n'
+        return res
 
+    def print_block(self):
+        label = f"preds: {self.preds}\n"
+        label += self.to_IR()
         label += "\n"
         label += f"succ: {self.succ}\n"
-        return label
-       
+        return label.replace("\n", "\\n")
+
+
+
 @dataclass
 class CFG:
     """Control Flow Graph for a function."""
@@ -182,25 +188,23 @@ class CFG:
             yield n
             q.extend((s for s in n.succ if s not in visited_blocks))
     
-    def to_graphviz(self, reversed_idom_tree: dict[BasicBlock, list[BasicBlock]], dominance_frontier: dict["BasicBlock", set["BasicBlock"]]):
+    def to_graphviz(self, 
+                    reversed_idom_tree: dict[BasicBlock, list[BasicBlock]], 
+                    dominance_frontier: dict["BasicBlock", set["BasicBlock"]]):
         res = f"digraph {self.name} {{\n"
         res += "node [shape=box]\n"
 
-        # Render all nodes
         for bb in self.traverse():
-            res += f'"{bb.label}" [label="{bb.to_IR()}"]\n'
+            res += f'"{bb.label}" [label="{bb.print_block()}"]\n'
 
-        # Render CFG edges
         for bb in self.traverse():
             for succ in bb.succ:
                 res += f'"{bb.label}" -> "{succ.label}"\n'
 
-        # Render dominator tree edges in blue
         for parent, children in reversed_idom_tree.items():
             for child in children:
                 res += f'"{parent.label}" -> "{child.label}" [color=blue]\n'
 
-        # Render dominance frontier edges in red
         for bb, dfs in dominance_frontier.items():
             for df in dfs:
                 res += f'"{bb.label}" -> "{df.label}" [color=red]\n'
@@ -212,6 +216,7 @@ class CFG:
         res = ""
         for bb in self.traverse():
             res += bb.to_IR()
+            res += "\n"
         return res
 
 class CFGBuilder:
