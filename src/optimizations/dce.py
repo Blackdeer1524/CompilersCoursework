@@ -67,7 +67,9 @@ class DCE:
                     case _:
                         pass
 
-    def _iter_uses_from_rhs(self, rhs: Operation | SSAValue) -> Iterable[tuple[str, int]]:
+    def _iter_uses_from_rhs(
+        self, rhs: Operation | SSAValue
+    ) -> Iterable[tuple[str, int]]:
         if isinstance(rhs, Operation):
             match rhs:
                 case OpBinary(_, left, right):
@@ -79,7 +81,9 @@ class DCE:
         else:
             yield from self._iter_uses_from_vals([rhs])
 
-    def _iter_uses_from_vals(self, vals: Iterable[SSAValue]) -> Iterable[tuple[str, int]]:
+    def _iter_uses_from_vals(
+        self, vals: Iterable[SSAValue]
+    ) -> Iterable[tuple[str, int]]:
         for v in vals:
             if isinstance(v, SSAVariable) and v.version is not None:
                 yield (v.name, v.version)
@@ -94,7 +98,10 @@ class DCE:
                             # Treat calls as side-effectful roots
                             self.live_insts.add(inst)
                             for arg in rhs.args:
-                                if isinstance(arg, SSAVariable) and arg.version is not None:
+                                if (
+                                    isinstance(arg, SSAVariable)
+                                    and arg.version is not None
+                                ):
                                     key = (arg.name, arg.version)
                                     if key not in self.live_vars:
                                         self.live_vars.add(key)
@@ -109,7 +116,7 @@ class DCE:
                     case InstCmp(left=left, right=right):
                         # Terminator: always live; seed operands
                         self.live_insts.add(inst)
-                        for key in self._iter_uses_from_vals([left, right]): 
+                        for key in self._iter_uses_from_vals([left, right]):
                             if key not in self.live_vars:
                                 self.live_vars.add(key)
                                 var_work.append(key)
@@ -125,7 +132,7 @@ class DCE:
             defining_inst = self.defs[key]
             if defining_inst in self.live_insts:
                 continue
-            
+
             self.live_insts.add(defining_inst)
             match defining_inst:
                 case InstAssign(lhs, rhs):
@@ -171,5 +178,3 @@ class DCE:
                     case _:
                         new_insts.append(inst)
             bb.instructions = new_insts
-
-

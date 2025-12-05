@@ -24,14 +24,14 @@ class TestDCE(unittest.TestCase):
 
         errors = analyzer.analyze()
         self.assertListEqual(errors, [])
-        
+
         builder = CFGBuilder()
         cfgs = builder.build(ast)
         self.assertEqual(len(cfgs), 1)
-        
+
         ssa_builder = SSABuilder()
         ssa_builder.build(cfgs[0])
-        
+
         return cfgs[0]
 
     def make_main(self, prog) -> str:
@@ -41,17 +41,17 @@ class TestDCE(unittest.TestCase):
         main = self.parse_programm(src)
         DCE().run(main)
         ir = main.to_IR().strip()
-        
+
         if expected_ir == ir:
             return
 
         ir = ir.replace("<", "&lt;").replace(">", "&gt;")
         expected_ir = expected_ir.replace("<", "&lt;").replace(">", "&gt;")
-        
+
         expected_graph = ir_to_graphviz(expected_ir)
         actual_graph = ir_to_graphviz(ir)
-        actual_graph = re.sub(r"(BB\d+)", r"\1'",actual_graph)
-        
+        actual_graph = re.sub(r"(BB\d+)", r"\1'", actual_graph)
+
         message = textwrap.dedent(f"""
         digraph G {{
             subgraph cluster_expected {{
@@ -67,15 +67,15 @@ class TestDCE(unittest.TestCase):
             }}
         }}
         """)
-        
+
         self.assertEqual(expected_ir, ir, message)
-    
+
     def test_simple(self):
         src = self.make_main("""
         a int = 0;
         return a;
         """)
-        
+
         expected_ir = textwrap.dedent("""
             ; pred: []
             BB0: ; [entry]
@@ -89,7 +89,7 @@ class TestDCE(unittest.TestCase):
         """).strip()
 
         self.assert_ir(src, expected_ir)
-        
+
     def test_complex_elim(self):
         src = self.make_main("""
         a int = 0;
@@ -98,7 +98,7 @@ class TestDCE(unittest.TestCase):
         }
         return 1;
         """)
-        
+
         expected_ir = textwrap.dedent("""
             ; pred: []
             BB0: ; [entry]
@@ -142,7 +142,7 @@ class TestDCE(unittest.TestCase):
         """).strip()
 
         self.assert_ir(src, expected_ir)
-    
+
     def test_dead_reassign(self):
         src = self.make_main("""
             a int = 1;
@@ -184,5 +184,3 @@ class TestDCE(unittest.TestCase):
         """).strip()
 
         self.assert_ir(src, expected_ir)
-           
-        

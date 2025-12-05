@@ -11,10 +11,9 @@ from src.optimizations.licm import LICM
 from src.optimizations.dce import DCE
 from src.optimizations.block_cleanup import BlockCleanup
 
+
 def main():
-    arg_parser = argparse.ArgumentParser(
-        description="SSA-based optimizing compiler"
-    )
+    arg_parser = argparse.ArgumentParser(description="SSA-based optimizing compiler")
     arg_parser.add_argument(
         "-i",
         "--input",
@@ -96,7 +95,5 @@ def main():
             print(graphviz)
 
 
-
 if __name__ == "__main__":
     main()
-    

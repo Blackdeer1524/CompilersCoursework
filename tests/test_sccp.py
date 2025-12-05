@@ -25,14 +25,14 @@ class TestSCCP(unittest.TestCase):
 
         errors = analyzer.analyze()
         self.assertListEqual(errors, [])
-        
+
         builder = CFGBuilder()
         cfgs = builder.build(ast)
         self.assertEqual(len(cfgs), 1)
-        
+
         ssa_builder = SSABuilder()
         ssa_builder.build(cfgs[0])
-        
+
         return cfgs[0]
 
     def make_main(self, prog) -> str:
@@ -42,14 +42,14 @@ class TestSCCP(unittest.TestCase):
         main = self.parse_programm(src)
         SCCP().run(main)
         ir = main.to_IR().strip()
-        
+
         if expected_ir == ir:
             return
 
         expected_graph = ir_to_graphviz(expected_ir)
         actual_graph = ir_to_graphviz(ir)
-        actual_graph = re.sub(r"(BB\d+)", r"'\1",actual_graph)
-        
+        actual_graph = re.sub(r"(BB\d+)", r"'\1", actual_graph)
+
         message = textwrap.dedent(f"""
         digraph G {{
             subgraph cluster_expected {{
@@ -82,7 +82,7 @@ class TestSCCP(unittest.TestCase):
         """).strip()
 
         self.assert_ir(src, expected_ir)
-    
+
     def test_transition_const(self):
         src = self.make_main("""
             a int = 0;
@@ -100,7 +100,7 @@ class TestSCCP(unittest.TestCase):
         """).strip()
 
         self.assert_ir(src, expected_ir)
-    
+
     def test_simple_unreachable_block_drop(self):
         src = self.make_main("""
             a int = 0;
@@ -127,7 +127,7 @@ class TestSCCP(unittest.TestCase):
         """).strip()
 
         self.assert_ir(src, expected_ir)
-      
+
     def test_interblock_propogation(self):
         src = self.make_main("""
             a int = 5;
@@ -137,7 +137,7 @@ class TestSCCP(unittest.TestCase):
             }
             return b;  // return 15
         """)
-        
+
         expected_ir = textwrap.dedent("""
             ; pred: []
             BB0: ; [entry]
@@ -201,7 +201,7 @@ class TestSCCP(unittest.TestCase):
         """).strip()
 
         self.assert_ir(src, expected_ir)
-    
+
     def test_initially_dead_condition(self):
         src = self.make_main("""
             N int = 0;
@@ -269,7 +269,7 @@ class TestSCCP(unittest.TestCase):
         """).strip()
 
         self.assert_ir(src, expected_ir)
-          
+
     def test_break_on_first_iter(self):
         src = self.make_main("""
             N int = 5;
@@ -384,4 +384,3 @@ class TestSCCP(unittest.TestCase):
         """).strip()
 
         self.assert_ir(src, expected_ir)
-

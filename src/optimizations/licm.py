@@ -70,7 +70,9 @@ class LICM:
 
             preheader = preheaders[0]
             assert len(preheader.succ) == 1 and preheader.succ[0] is header
-            loops.append(LoopInfo(header=header, preheader=preheader, blocks=set(blocks)))
+            loops.append(
+                LoopInfo(header=header, preheader=preheader, blocks=set(blocks))
+            )
         return loops
 
     def _dominates(self, a: BasicBlock, b: BasicBlock) -> bool:
@@ -80,7 +82,9 @@ class LICM:
             return False
         return a in doms
 
-    def _collect_loop_blocks(self, header: BasicBlock, tail: BasicBlock) -> set[BasicBlock]:
+    def _collect_loop_blocks(
+        self, header: BasicBlock, tail: BasicBlock
+    ) -> set[BasicBlock]:
         loop_blocks = {header}
         stack = [tail]
         while stack:
@@ -147,7 +151,10 @@ class LICM:
         if not operands:
             return True
 
-        return all(self._operand_is_invariant(op, loop_blocks, invariant_defs) for op in operands)
+        return all(
+            self._operand_is_invariant(op, loop_blocks, invariant_defs)
+            for op in operands
+        )
 
     def _collect_operands(self, rhs: Operation | SSAValue) -> Iterable[SSAValue]:
         if isinstance(rhs, Operation):
@@ -178,4 +185,3 @@ class LICM:
             def_block = self.def_to_block.get(key)
             return def_block is not None and def_block not in loop_blocks
         return False
-

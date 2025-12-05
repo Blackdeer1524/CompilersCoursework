@@ -57,4 +57,3 @@ class BlockCleanup:
 
         bb.preds.clear()
         bb.succ.clear()
-

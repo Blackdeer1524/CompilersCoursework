@@ -136,7 +136,9 @@ class SCCP:
                     case _:
                         pass
 
-    def _iter_uses_from_rhs(self, rhs: Operation | SSAValue) -> Iterable[tuple[str, int]]:
+    def _iter_uses_from_rhs(
+        self, rhs: Operation | SSAValue
+    ) -> Iterable[tuple[str, int]]:
         if isinstance(rhs, Operation):
             match rhs:
                 case OpBinary(_, left, right):
@@ -148,7 +150,9 @@ class SCCP:
         else:
             yield from self._iter_uses_from_vals([rhs])
 
-    def _iter_uses_from_vals(self, vals: Iterable[SSAValue]) -> Iterable[tuple[str, int]]:
+    def _iter_uses_from_vals(
+        self, vals: Iterable[SSAValue]
+    ) -> Iterable[tuple[str, int]]:
         for v in vals:
             if isinstance(v, SSAVariable) and v.version is not None:
                 yield (v.name, v.version)
@@ -307,7 +311,9 @@ class SCCP:
             if op == "&&":
                 return LatticeValue.const(self._truthy(x) & self._truthy(y))
             if op == "||":
-                return LatticeValue.const(1 if (self._truthy(x) | self._truthy(y)) else 0)
+                return LatticeValue.const(
+                    1 if (self._truthy(x) | self._truthy(y)) else 0
+                )
         except Exception:
             return LatticeValue.nac()
         return LatticeValue.nac()
@@ -333,8 +339,8 @@ class SCCP:
         right = br.right
         lv = self._get_lattice_of_value(left)
         rv = self._get_lattice_of_value(right)
-        then_block = self.label_to_block[br.then_label] 
-        else_block = self.label_to_block[br.else_label]  
+        then_block = self.label_to_block[br.then_label]
+        else_block = self.label_to_block[br.else_label]
         if lv.is_const() and rv.is_const():
             cond_true = 1 if lv.value == rv.value else 0
             if cond_true == 1:
@@ -350,12 +356,12 @@ class SCCP:
     # ---------- Rewriting ----------
     def _rewrite_cfg(self):
         assert self.cfg is not None
-        
+
         reachable = self.executable_blocks.copy()
         for bb in list(self.cfg):
             if bb in reachable:
                 continue
-                
+
             for pred in bb.preds:
                 pred.succ.remove(bb)
 
@@ -371,8 +377,11 @@ class SCCP:
 
         for bb in self.cfg:
             for phi_node in bb.phi_nodes.values():
-                new_rhs = {pred: self._replace_in_rhs(val) for pred, val in phi_node.rhs.items()}
-                phi_node.rhs = new_rhs 
+                new_rhs = {
+                    pred: self._replace_in_rhs(val)
+                    for pred, val in phi_node.rhs.items()
+                }
+                phi_node.rhs = new_rhs
 
             for i, inst in enumerate(bb.instructions):
                 match inst:
@@ -404,10 +413,10 @@ class SCCP:
                         new_right = self._replace_value(right)
                         inst.left = new_left
                         inst.right = new_right
-                        
+
                         left_lattice = self._get_lattice_of_value(new_left)
                         right_lattice = self._get_lattice_of_value(new_right)
-                        
+
                         if left_lattice.is_const() and right_lattice.is_const():
                             if left_lattice.value == right_lattice.value:
                                 bb.instructions[i] = InstUncondJump(inst.then_label)
@@ -433,7 +442,9 @@ class SCCP:
         if isinstance(rhs, Operation):
             match rhs:
                 case OpBinary(op, left, right):
-                    return OpBinary(op, self._replace_value(left), self._replace_value(right))
+                    return OpBinary(
+                        op, self._replace_value(left), self._replace_value(right)
+                    )
                 case OpUnary(op, val):
                     return OpUnary(op, self._replace_value(val))
                 case OpCall(name, args):
@@ -448,5 +459,3 @@ class SCCP:
             if lv is not None and lv.is_const():
                 return SSAConstant(lv.value or 0)
         return v
-
-

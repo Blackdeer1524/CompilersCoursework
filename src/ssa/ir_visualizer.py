@@ -3,7 +3,7 @@ from typing import Iterable
 
 
 def _htmlify_lines(lines: Iterable[str]) -> str:
-    return "<br ALIGN=\"LEFT\"/>".join(line for line in lines)
+    return '<br ALIGN="LEFT"/>'.join(line for line in lines)
 
 
 def ir_to_graphviz(ir: str, name: str = "IR") -> str:
@@ -60,4 +60,3 @@ def ir_to_graphviz(ir: str, name: str = "IR") -> str:
         graph_lines.append(f'"{src}" -> "{dst}"')
 
     return "\n".join(graph_lines)
-

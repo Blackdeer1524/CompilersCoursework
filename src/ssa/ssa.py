@@ -1,25 +1,39 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Optional
-from src.ssa.cfg import CFG, BasicBlock, InstAssign, InstCmp, InstPhi, InstReturn, Instruction, OpBinary, OpCall, OpUnary, Operation, SSAValue, SSAVariable
+from src.ssa.cfg import (
+    CFG,
+    BasicBlock,
+    InstAssign,
+    InstCmp,
+    InstPhi,
+    InstReturn,
+    Instruction,
+    OpBinary,
+    OpCall,
+    OpUnary,
+    Operation,
+    SSAValue,
+    SSAVariable,
+)
 from src.ssa.dominance import compute_dominance_frontier_graph, compute_dominator_tree
 
 
 @dataclass
 class DefInfo:
     defining_blocks: set[BasicBlock] = field(init=False, default_factory=set)
-    
+
     def add(self, bb: BasicBlock):
         self.defining_blocks.add(bb)
 
+
 class SSABuilder:
-    def __init__(self):
-        ...
-        
+    def __init__(self): ...
+
     def _compute_liveness(self):
         block_ud: dict[BasicBlock, tuple[set[str], set[str]]] = {}
-        self.live_in: dict[BasicBlock, set[str]] ={}
-        self.live_out: dict[BasicBlock, set[str]] ={}
+        self.live_in: dict[BasicBlock, set[str]] = {}
+        self.live_out: dict[BasicBlock, set[str]] = {}
         for bb in self.cfg:
             block_ud[bb] = self._collect_uses_defs(bb)
             self.live_in[bb] = set()
@@ -37,7 +51,7 @@ class SSABuilder:
                 if new_out != self.live_out[bb] or new_in != self.live_in[bb]:
                     self.live_out[bb] = new_out
                     self.live_in[bb] = new_in
-                    changed = True     
+                    changed = True
 
     def _collect_uses_defs(self, bb: BasicBlock) -> tuple[set[str], set[str]]:
         uses: set[str] = set()
@@ -54,7 +68,8 @@ class SSABuilder:
                     if isinstance(rhs, Operation):
                         match rhs:
                             case OpBinary(_, left, right):
-                                use_val(left); use_val(right)
+                                use_val(left)
+                                use_val(right)
                             case OpUnary(_, val):
                                 use_val(val)
                             case OpCall(_, args):
@@ -64,7 +79,8 @@ class SSABuilder:
                         use_val(rhs)
                     defs.add(lhs.name)
                 case InstCmp(left, right):
-                    use_val(left); use_val(right)
+                    use_val(left)
+                    use_val(right)
                 case InstReturn(val):
                     if val is not None:
                         use_val(val)
@@ -72,7 +88,7 @@ class SSABuilder:
                     pass
 
         return uses, defs
-    
+
     def _put_phis(self):
         defs_by_var: dict[str, DefInfo] = defaultdict(DefInfo)
         for bb in self.idom_tree.traverse():
@@ -94,8 +110,11 @@ class SSABuilder:
 
                     y.insert_phi(var)
                     has_phi.add(y)
-                    if not any(isinstance(i, InstAssign) and i.lhs.name == var for i in y.instructions):
-                        work.append(y) 
+                    if not any(
+                        isinstance(i, InstAssign) and i.lhs.name == var
+                        for i in y.instructions
+                    ):
+                        work.append(y)
 
     def _rename_inst(self, inst: Instruction, bb: BasicBlock) -> Optional[str]:
         match inst:
@@ -117,11 +136,11 @@ class SSABuilder:
                 if val is None:
                     return
                 self._rename_ssa_val(val)
-    
+
     def _rename_ssa_val(self, val: SSAValue):
         if isinstance(val, SSAVariable):
             self._rename_var(val)
-    
+
     def _rename_operation(self, op: Operation):
         match op:
             case OpCall():
@@ -132,16 +151,16 @@ class SSABuilder:
                 self._rename_ssa_val(op.right)
             case OpUnary():
                 self._rename_ssa_val(op.val)
-    
+
     def _rename_var(self, var: SSAVariable):
         assert len(self.versions[var.name]) > 0
         var.version = self.versions[var.name][-1]
-        
+
     def _new_version(self, var: SSAVariable):
         self.version_counter[var.name] += 1
         var.version = self.version_counter[var.name]
         self.versions[var.name].append(var.version)
-    
+
     def _rename_helper(self, bb: BasicBlock):
         block_new_assign_count: dict[str, int] = defaultdict(lambda: 0)
 
@@ -154,17 +173,17 @@ class SSABuilder:
             var = self._rename_inst(inst, bb)
             if var is not None:
                 block_new_assign_count[var] += 1
-        
+
         for succ in bb.succ:
             for phi_var, phi_inst in succ.phi_nodes.items():
                 if self.versions.get(phi_var) is None:
                     continue
                 version = self.versions[phi_var][-1]
                 phi_inst.rhs[bb.label] = SSAVariable(phi_var, version)
-        
+
         for child in self.idom_tree.reversed_idom[bb]:
             self._rename_helper(child)
-        
+
         for var, c in block_new_assign_count.items():
             self.versions[var] = self.versions[var][:-c]
 
@@ -172,12 +191,10 @@ class SSABuilder:
         self.cfg = cfg
         self.idom_tree = compute_dominator_tree(cfg)
         self.DF = compute_dominance_frontier_graph(cfg, self.idom_tree)
-        
+
         self.versions: dict[str, list[int]] = defaultdict(lambda: [])
-        self.version_counter : dict[str, int] = defaultdict(lambda: 0)
-        
+        self.version_counter: dict[str, int] = defaultdict(lambda: 0)
+
         self._compute_liveness()
         self._put_phis()
         self._rename_helper(cfg.entry)
-
-        
