@@ -50,7 +50,7 @@ class TestDCE(unittest.TestCase):
         
         expected_graph = ir_to_graphviz(expected_ir)
         actual_graph = ir_to_graphviz(ir)
-        actual_graph = re.sub(r"(BB\d+)", r"\1",actual_graph)
+        actual_graph = re.sub(r"(BB\d+)", r"\1'",actual_graph)
         
         message = textwrap.dedent(f"""
         digraph G {{
