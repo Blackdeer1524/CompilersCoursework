@@ -263,6 +263,60 @@ class TestSCCP(base.TestBase):
             ; succ: []
         """).strip()
         self.assert_ir(src, expected_ir)
+    
+    def test_complicacted_induction_dont_break_sccp(self):
+        src = self.make_main("""
+            n int = 0;
+            for (i int = 0; i < 10; i = 2 * i + 1) {
+                n = n + i;
+            }
+            return n;
+        """)
+        
+        expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                n_v1 = 0
+                jmp BB2
+            ; succ: [BB2]
+
+            ; pred: [BB0]
+            BB2: ; [loop init]
+                i_v1 = 0
+                jmp BB3
+            ; succ: [BB3]
+
+            ; pred: [BB2, BB6]
+            BB3: ; [loop header]
+                n_v2 = ϕ(BB2: 0, BB6: n_v3)
+                i_v2 = ϕ(BB2: 0, BB6: i_v3)
+
+                %0_v1 = i_v2 &lt; 10
+                cmp(%0_v1, 1)
+                if CF == 1 then jmp BB5 else jmp BB4
+            ; succ: [BB5, BB4]
+
+            ; pred: [BB3]
+            BB4: ; [loop exit]
+                return(n_v2)
+            ; succ: []
+
+            ; pred: [BB3]
+            BB5: ; [loop body]
+                n_v3 = n_v2 + i_v2
+                jmp BB6
+            ; succ: [BB6]
+
+            ; pred: [BB5]
+            BB6: ; [loop update]
+                %5_v1 = 2 * i_v2
+                i_v3 = %5_v1 + 1
+                jmp BB3
+            ; succ: [BB3] 
+        """).strip() 
+        
+        self.assert_ir(src, expected_ir)
+        
 
     def test_break_on_first_iter_transitional(self):
         src = self.make_main("""
@@ -326,3 +380,65 @@ class TestSCCP(base.TestBase):
         """).strip()
 
         self.assert_ir(src, expected_ir)
+
+    def test_unconditional_loop(self):
+        src = self.make_main("""
+            N int = 0;
+            for {
+                a int = N + 1;
+                if (a == 1) {
+                    break;
+                }
+                
+                unreachable int = 12 * a;
+            }
+            return N;
+        """)
+
+        expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                N_v1 = 0
+                jmp BB2
+            ; succ: [BB2]
+
+            ; pred: [BB0]
+            BB2: ; [uncond loop init]
+                jmp BB3
+            ; succ: [BB3]
+
+            ; pred: [BB2]
+            BB3: ; [uncond loop body]
+                a_v1 = 1
+                %2_v1 = 1
+                jmp BB5
+            ; succ: [BB5]
+
+            ; pred: [BB3]
+            BB5: ; [then]
+                jmp BB4
+            ; succ: [BB4]
+
+            ; pred: [BB5]
+            BB4: ; [uncond loop exit]
+                return(0)
+            ; succ: []
+        """).strip()
+        self.assert_ir(src, expected_ir)
+    
+    def test_uncconditional_for_loop(self):
+        src = self.make_main("""
+            i int = 0;
+            N int = 10;
+            for {
+                if (i >= N) {
+                    break;
+                }
+                i = i + 1;
+            }
+            return 0;
+        """)
+
+        expected_ir = textwrap.dedent("""
+        """).strip()
+        self.assert_ir(src, expected_ir)       

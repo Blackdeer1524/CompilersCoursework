@@ -84,10 +84,9 @@ def main():
             f.write(ir)
         print(ir)
     else:
-        # idom_tree = compute_dominator_tree(cfg)
-        # df = compute_dominance_frontier_graph(cfg, idom_tree)
-
-        graphviz = cfg.to_graphviz({}, {})
+        idom_tree = compute_dominator_tree(cfg)
+        df = compute_dominance_frontier_graph(cfg, idom_tree)
+        graphviz = cfg.to_graphviz(idom_tree.reversed_idom, df)
         if args.dump_cfg_dot:
             with open(args.dump_cfg_dot, "w") as f:
                 f.write(graphviz)

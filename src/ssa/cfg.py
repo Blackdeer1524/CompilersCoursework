@@ -169,25 +169,6 @@ class BasicBlock:
     def __repr__(self):
         return self.label
 
-    def print(self):
-        res = ""
-        res += f'<font color="grey">; pred: {self.preds}</font>\n'
-        res += self.label + ":"
-        if self.meta is not None:
-            res += f' <font color="grey">; [{self.meta}]</font>'
-        res += "\n"
-
-        if len(self.phi_nodes) > 0:
-            for phi in self.phi_nodes.values():
-                res += "    " + phi.to_IR().replace("\n", "\n    ") + "\n"
-            res += "\n"
-
-        for inst in self.instructions:
-            res += "    " + inst.to_IR().replace("\n", "\n    ") + "\n"
-
-        res += f'<font color="grey">; succ: {self.succ}</font>'
-        return res
-
     def to_IR(self) -> str:
         res = ""
         res += f"; pred: {self.preds}\n"
@@ -208,11 +189,35 @@ class BasicBlock:
         return res
 
     def print_block(self):
-        # label = f"preds: {self.preds}\n"
-        label = self.print()
-        label += "\n\n"
-        # label += f"succ: {self.succ}\n"
-        return label.replace("\n", "\\n")
+        res = ""
+        res += f'<font color="grey">; pred: {self.preds}</font><br ALIGN="LEFT"/>'
+        res += self.label + ":"
+        if self.meta is not None:
+            res += f' <font color="grey">; [{self.meta}]</font>'
+        res += '<br ALIGN="left"/>'
+
+        if len(self.phi_nodes) > 0:
+            for phi in self.phi_nodes.values():
+                res += (
+                    "    "
+                    + phi.to_IR().replace("\n", '<br ALIGN="left"/>    ')
+                    + '<br ALIGN="left"/>'
+                )
+            res += '<br ALIGN="left"/>'
+
+        for inst in self.instructions:
+            res += "    " + (
+                inst.to_IR()
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\n", '<br ALIGN="left"/>    ')
+                + '<br ALIGN="left"/>'
+            )
+
+        res += f'<font color="grey">; succ: {self.succ}</font>'
+        res += '<br ALIGN="left"/>'
+        
+        return res
 
 
 @dataclass
@@ -241,8 +246,7 @@ class CFG:
         res += "node [shape=box]\n"
 
         for bb in self:
-            bb_repr = bb.print_block().replace("\\n", '<br ALIGN="LEFT"/>')
-            # bb_repr = re.sub(r"(BB\d+)", r'<font color="blue">\1</font>', bb_repr)
+            bb_repr = bb.print_block().replace("\\l", '<br ALIGN="LEFT"/>')
             res += f'"{bb.label}" [label=<{bb_repr}>]\n'
 
         for bb in self:
@@ -442,7 +446,7 @@ class CFGBuilder:
     def _build_for_loop(self, stmt: ForLoop):
         assert self.current_block is not None, "Current block must be set"
 
-        init_block = self._new_block("loop init")
+        preheader_block = self._new_block("loop preheader")
         header_block = self._new_block("loop header")
         exit_block = self._new_block("loop exit")
 
@@ -452,10 +456,10 @@ class CFGBuilder:
         self.break_targets.append(exit_block)
         self.continue_targets.append(update_block)
 
-        self.current_block.add_child(init_block)
-        self.current_block.append(InstUncondJump(init_block))
+        self.current_block.add_child(preheader_block)
+        self.current_block.append(InstUncondJump(preheader_block))
 
-        self._switch_to_block(init_block)
+        self._switch_to_block(preheader_block)
         self.current_block.add_child(header_block)
         self._build_assignment(stmt.init)
         self.current_block.append(InstUncondJump(header_block))
@@ -472,7 +476,7 @@ class CFGBuilder:
         self._build_block(stmt.body)
 
         if len(self.current_block.instructions) == 0 or not isinstance(
-            self.current_block.instructions[-1], (InstUncondJump, InstCmp)
+            self.current_block.instructions[-1], (InstUncondJump, InstCmp, InstReturn)
         ):
             self.current_block.add_child(update_block)
             self.current_block.append(InstUncondJump(update_block))
@@ -489,30 +493,43 @@ class CFGBuilder:
     def _build_unconditional_loop(self, stmt: UnconditionalLoop):
         assert self.current_block is not None, "Current block must be set"
 
-        init_block = self._new_block("uncond loop init")
-        body_block = self._new_block("uncond loop body")
+        preheader_block = self._new_block("uncond loop preheader")
+        header_block = self._new_block("uncond loop header")
         exit_block = self._new_block("uncond loop exit")
 
+        body_block = self._new_block("uncond loop body")
+        tail_block = self._new_block("uncond loop tail")
+
         self.break_targets.append(exit_block)
-        self.continue_targets.append(init_block)
+        self.continue_targets.append(tail_block)
 
-        self.current_block.add_child(init_block)
-        self.current_block.append(InstUncondJump(init_block))
+        self.current_block.add_child(preheader_block)
+        self.current_block.append(InstUncondJump(preheader_block))
 
-        self._switch_to_block(init_block)
+        self._switch_to_block(preheader_block)
+        self.current_block.add_child(header_block)
+        self.current_block.append(InstUncondJump(header_block))
+
+        self._switch_to_block(header_block)
         self.current_block.add_child(body_block)
         self.current_block.append(InstUncondJump(body_block))
 
         self._switch_to_block(body_block)
         self._build_block(stmt.body)
 
-        self.current_block.add_child(init_block)
-        self.current_block.append(InstUncondJump(body_block))
+        if len(self.current_block.instructions) == 0 or not isinstance(
+            self.current_block.instructions[-1], (InstUncondJump, InstCmp, InstReturn)
+        ):
+            self.current_block.add_child(tail_block)
+            self.current_block.append(InstUncondJump(tail_block))
+
+        self._switch_to_block(tail_block)
+        self.current_block.add_child(header_block)
+        self.current_block.append(InstUncondJump(header_block))
 
         self.break_targets.pop()
         self.continue_targets.pop()
-
-        self._switch_to_block(exit_block)
+        self._switch_to_block(exit_block) 
 
     def _build_return(self, stmt: Return):
         assert self.current_block is not None, "Current block must be set"
