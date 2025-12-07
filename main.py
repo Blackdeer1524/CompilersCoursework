@@ -55,6 +55,18 @@ def main():
         action="store_true",
         help="disables phi-nodes placement",
     )
+    
+    arg_parser.add_argument(
+        "--disable-idom-tree",
+        action="store_true",
+        help="",
+    )
+    arg_parser.add_argument(
+        "--disable-df",
+        action="store_true",
+        help="",
+    )
+
     args = arg_parser.parse_args()
 
     with open(args.input, "r") as f:
@@ -91,8 +103,18 @@ def main():
         print(ir)
     else:
         idom_tree = compute_dominator_tree(cfg)
-        df = compute_dominance_frontier_graph(cfg, idom_tree)
-        graphviz = cfg.to_graphviz(idom_tree.reversed_idom, df)
+
+        if args.disable_idom_tree:
+            rev_idom = {}
+        else:
+            rev_idom = idom_tree.reversed_idom
+        
+        if args.disable_df:
+            df = {}
+        else:
+            df = compute_dominance_frontier_graph(cfg, idom_tree)
+            
+        graphviz = cfg.to_graphviz(rev_idom, df)
         if args.dump_cfg_dot:
             with open(args.dump_cfg_dot, "w") as f:
                 f.write(graphviz)

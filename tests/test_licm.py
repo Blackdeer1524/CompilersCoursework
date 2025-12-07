@@ -427,11 +427,28 @@ class TestLICM(base.TestBase):
         self.assert_ir(src, expected_ir)
 
     def test_complicated_hoist(self):
-        src = self.make_main("""
+        src = """
+        func main() -> int {
+            v int = 0;
             for (i int = 0; i < 10; i = i + 1) {
-                
+                v = 2;          // hoist
+                N int = foo();
+                if (N == 0) {
+                    break;
+                }
+                a int = 0;
+                for (j int = 0; j < 10; j = j + 1) {
+                    N = 10;     // hoist before break
+                    a = N + j;  
+                }
             }
-        """)
+            return v;
+        }
+        
+        func foo() -> int {
+            return 42;
+        }
+        """
 
         expected_ir = textwrap.dedent("""
         """).strip()

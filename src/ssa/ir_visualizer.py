@@ -1,7 +1,7 @@
 import re
 from typing import Iterable
 
-from src.ssa.helpers import color_label
+from src.ssa.helpers import bb_colors, color_label
 
 
 def _htmlify_lines(lines: Iterable[str]) -> str:
@@ -60,6 +60,7 @@ def ir_to_graphviz(ir: str, name: str = "IR") -> str:
         graph_lines.append(f'"{label}" [label=<{html_label}>]')
 
     for src, dst in edges:
-        graph_lines.append(f'"{src}" -> "{dst}"')
+        graph_lines.append(f'"{src}" -> "{dst}" [headport="n", tailport="s", penwidth=2, color="{bb_colors[dst]};0.5:{bb_colors[src]}"]')
+
 
     return "\n".join(graph_lines)

@@ -25,7 +25,7 @@ from src.parsing.parser import (
     IntegerLiteral,
     CallExpression,
 )
-from src.ssa.helpers import color_label
+from src.ssa.helpers import color_label, bb_colors
 
 
 @dataclass
@@ -190,7 +190,7 @@ class BasicBlock:
             res += "    " + inst.to_IR().replace("\n", "\n    ") + "\n"
 
         res += f"; succ: {self.succ}"
-        return res 
+        return res
 
     def print_block(self):
         res = ""
@@ -251,8 +251,6 @@ class CFG:
         dominance_frontier: dict["BasicBlock", set["BasicBlock"]],
     ):
         res = f"digraph {self.name} {{\n"
-        res += "rankdir=TB;\n"
-        res += "splines=ortho;\n"
         res += "node [shape=box]\n"
 
         for bb in self:
@@ -261,7 +259,7 @@ class CFG:
 
         for bb in self:
             for succ in bb.succ:
-                res += f'"{bb.label}" -> "{succ.label}"\n'
+                res += f'"{bb.label}" -> "{succ.label}" [headport="n", tailport="s", penwidth=2, color="{bb_colors[succ.label]};0.5:{bb_colors[bb.label]}"]\n'
 
         for parent, children in reversed_idom_tree.items():
             for child in children:
@@ -503,9 +501,9 @@ class CFGBuilder:
         self.continue_targets.pop()
 
         self._switch_to_block(tail_block)
-        self.current_block.append(InstUncondJump(exit_block)) 
+        self.current_block.append(InstUncondJump(exit_block))
         self.current_block.add_child(exit_block)
-        
+
         self._switch_to_block(exit_block)
 
     def _build_unconditional_loop(self, stmt: UnconditionalLoop):
