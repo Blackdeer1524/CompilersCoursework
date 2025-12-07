@@ -11,6 +11,7 @@ from src.ssa.cfg import (
     Instruction,
     InstAssign,
     InstCmp,
+    InstGetArgument,
     InstPhi,
     InstReturn,
     OpLoad,
@@ -136,6 +137,9 @@ class SCCP:
                     case InstArrayInit(lhs):
                         if lhs.version is not None:
                             self.defs[(lhs.name, lhs.version)] = inst
+                    case InstGetArgument(lhs, _):
+                        if lhs.version is not None:
+                            self.defs[(lhs.name, lhs.version)] = inst
                     case _:
                         pass
 
@@ -212,6 +216,8 @@ class SCCP:
                     self._mark_edge_feasible(bb, target)
                 case InstArrayInit(_, _):
                     self._evaluate_array_init(inst)
+                case InstGetArgument(_, _):
+                    self._evaluate_get_argument(inst)
                 case InstStore(_, _):
                     self._evaluate_store(inst)
                 case _:
@@ -282,6 +288,11 @@ class SCCP:
         return LatticeValue.nac()
 
     def _evaluate_array_init(self, inst: InstArrayInit):
+        lhs = inst.lhs
+        assert lhs.version is not None
+        self._set_lattice((lhs.name, lhs.version), LatticeValue.nac())
+
+    def _evaluate_get_argument(self, inst: InstGetArgument):
         lhs = inst.lhs
         assert lhs.version is not None
         self._set_lattice((lhs.name, lhs.version), LatticeValue.nac())

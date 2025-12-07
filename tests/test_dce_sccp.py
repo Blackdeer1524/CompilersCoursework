@@ -54,17 +54,12 @@ class TestSCCPAndDCE(base.TestBase):
             ; succ: [BB2]
 
             ; pred: [BB0]
-            BB2: ; [loop init]
-                jmp BB3
-            ; succ: [BB3]
+            BB2: ; [condition check]
+                jmp BB7
+            ; succ: [BB7]
 
             ; pred: [BB2]
-            BB3: ; [loop header]
-                jmp BB4
-            ; succ: [BB4]
-
-            ; pred: [BB3]
-            BB4: ; [loop exit]
+            BB7: ; [loop exit]
                 return(0)
             ; succ: []
         """).strip()

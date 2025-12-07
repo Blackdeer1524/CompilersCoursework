@@ -9,6 +9,7 @@ from src.ssa.cfg import (
     Instruction,
     InstAssign,
     InstCmp,
+    InstGetArgument,
     InstUncondJump,
     InstReturn,
     InstPhi,
@@ -63,6 +64,9 @@ class DCE:
                             self.defs[(lhs.name, lhs.version)] = inst
                         for use_key in self._iter_uses_from_rhs(rhs):
                             self.uses[use_key].add(inst)
+                    case InstGetArgument(lhs, _):
+                        if lhs.version is not None:
+                            self.defs[(lhs.name, lhs.version)] = inst
                     case InstCmp(left=left, right=right):
                         for use_key in self._iter_uses_from_vals([left, right]):  # type: ignore[name-defined]
                             self.uses[use_key].add(inst)
@@ -184,6 +188,9 @@ class DCE:
                     case InstCmp():
                         new_insts.append(inst)
                     case InstAssign(_, _):
+                        if inst in self.live_insts:
+                            new_insts.append(inst)
+                    case InstGetArgument(_, _):
                         if inst in self.live_insts:
                             new_insts.append(inst)
                     case _:

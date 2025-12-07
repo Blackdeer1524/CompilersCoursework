@@ -7,6 +7,7 @@ from src.ssa.cfg import (
     InstArrayInit,
     InstAssign,
     InstCmp,
+    InstGetArgument,
     InstPhi,
     InstReturn,
     InstStore,
@@ -94,6 +95,8 @@ class SSABuilder:
                 case InstStore(addr, rhs):
                     uses.add(addr.name)
                     use_val(rhs)
+                case InstGetArgument(lhs, _):
+                    defs.add(lhs.name)
                 case _:
                     pass
         return uses, defs
@@ -102,7 +105,7 @@ class SSABuilder:
         defs_by_var: dict[str, DefInfo] = defaultdict(DefInfo)
         for bb in self.idom_tree.traverse():
             for inst in bb.instructions:
-                if isinstance(inst, InstAssign):
+                if isinstance(inst, (InstAssign, InstGetArgument)):
                     defs_by_var[inst.lhs.name].add(bb)
 
         for var, def_blocks in defs_by_var.items():
@@ -120,7 +123,8 @@ class SSABuilder:
                     y.insert_phi(var)
                     has_phi.add(y)
                     if not any(
-                        isinstance(i, InstAssign) and i.lhs.name == var
+                        isinstance(i, (InstAssign, InstGetArgument))
+                        and i.lhs.name == var
                         for i in y.instructions
                     ):
                         work.append(y)
@@ -150,6 +154,9 @@ class SSABuilder:
             case InstStore(addr, val):
                 self._rename_ssa_val(addr)
                 self._rename_ssa_val(val)
+            case InstGetArgument(lhs, _):
+                self._new_version(lhs)
+                return lhs.name
 
     def _rename_ssa_val(self, val: SSAValue):
         if isinstance(val, SSAVariable):
@@ -203,6 +210,11 @@ class SSABuilder:
         for var, c in block_new_assign_count.items():
             self.versions[var] = self.versions[var][:-c]
 
+    def _insert_get_argument_instructions(self):
+        entry = self.cfg.entry
+        for i, arg in enumerate(self.cfg.args):
+            entry.instructions.append(InstGetArgument(SSAVariable(arg.name), i))
+
     def build(self, cfg: CFG):
         self.cfg = cfg
         self.idom_tree = compute_dominator_tree(cfg)
@@ -211,6 +223,7 @@ class SSABuilder:
         self.versions: dict[str, list[int]] = defaultdict(lambda: [])
         self.version_counter: dict[str, int] = defaultdict(lambda: 0)
 
+        self._insert_get_argument_instructions()
         self._compute_liveness()
         self._put_phis()
         self._rename_helper(cfg.entry)

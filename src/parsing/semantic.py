@@ -197,6 +197,10 @@ class SemanticAnalyzer:
         """Collect function declaration into symbol table."""
         param_types = [(arg.name, Type.from_string(arg.type)) for arg in func.args]
         return_type = Type.from_string(func.return_type)
+        
+        if return_type.is_array():
+            self.errors.append(SemanticError("Functions cannot return arrays", func.line, func.column))
+        
         func_info = FunctionInfo(
             func.name, return_type, param_types, func.line, func.column
         )

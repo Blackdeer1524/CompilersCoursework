@@ -5,6 +5,7 @@ from typing import Iterator, Optional, Sequence
 from src.parsing.parser import (
     Program,
     Function,
+    Argument,
     Statement,
     Assignment,
     Reassignment,
@@ -168,6 +169,15 @@ class InstStore(Instruction):
         return f"*({self.dst_address}) = {self.value}"
 
 
+@dataclass(eq=False)
+class InstGetArgument(Instruction):
+    lhs: SSAVariable
+    index: int
+
+    def to_IR(self):
+        return f"{self.lhs} = getarg({self.index})"
+
+
 class BasicBlock:
     def __init__(self, label: str, meta: Optional[str] = None):
         self.label = label
@@ -268,6 +278,7 @@ class CFG:
     name: str
     entry: BasicBlock
     exit: BasicBlock
+    args: list["Argument"] = field(default_factory=list)  # Function arguments
 
     def __iter__(self) -> Iterator[BasicBlock]:
         visited_blocks = set()
@@ -380,7 +391,7 @@ class CFGBuilder:
         entry = self._new_block("entry")
         exit_block = self._new_block("exit")
 
-        cfg = CFG(func.name, entry=entry, exit=exit_block)
+        cfg = CFG(func.name, entry=entry, exit=exit_block, args=func.args)
         self.current_cfg = cfg
         self.current_block = entry
 

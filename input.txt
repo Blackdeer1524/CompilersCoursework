@@ -1,7 +1,13 @@
-func main() -> int {
-    let A [64][64]int = {};
-    let B [64][64]int = {};
-    let C [64][64]int = {};
+func main() -> void {
+    let a [64][64]int = {};
+    let b [64][64]int = {};
+    let c [64][64]int = {};
+    
+    matrix_mult(a, b, c);
+    print(c);
+}
+
+func matrix_mult(A [64][64]int, B [64][64]int, C [64][64]int) -> void {
     for (let i int = 0; i < 64; i = i + 1) {
         for (let j int = 0; j < 64; j = j + 1) {
             for (let k int = 0; k < 64; k = k + 1) {
@@ -9,9 +15,6 @@ func main() -> int {
             }
         }
     }
-    print(C);
-
-    return 0;
 }
 
 func print(C [64][64]int) -> void {

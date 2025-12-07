@@ -66,13 +66,15 @@ func main() -> void {
 ```
 PROGRAMM ::= FUNCTION+
 
-FUNCTION ::= func %name% "(" ARG_LIST ")" "->" TYPE "{" BLOCK "}"
+FUNCTION ::= func %name% "(" ARG_LIST ")" "->" RETURN_TYPE "{" BLOCK "}"
 
 ARG_LIST ::= EPSILON | ARG ("," ARG)*
 
 ARG ::= %name% %type%
 
-TYPE ::= int | ("[" %integer% "]")+ int | void
+VARIABLE_TYPE ::= int | ("[" %integer% "]")+ int
+
+RETURN_TYPE ::= int | void
 
 BLOCK ::= "{" STATEMENTS "}"
 
@@ -89,7 +91,7 @@ STATEMENT ::=
     | CONTINUE ";"
     | BLOCK
 
-ASSIGNMENT ::= "let" %name% %type% "=" (EXPR | "{}") ";"
+ASSIGNMENT ::= "let" %name% VARIABLE_TYPE "=" (EXPR | "{}") ";"
 
 REASSIGNMENT ::= EXPR_LVALUE "=" EXPR ";"
 
