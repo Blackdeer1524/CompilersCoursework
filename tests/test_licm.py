@@ -451,66 +451,240 @@ class TestLICM(base.TestBase):
         """
 
         expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                v_v1 = 0
+                jmp BB2
+            ; succ: [BB2]
+
+            ; pred: [BB0]
+            BB2: ; [condition check]
+                i_v1 = 0
+                %0_v1 = i_v1 &lt; 10
+                cmp(%0_v1, 1)
+                if CF == 1 then jmp BB3 else jmp BB7
+            ; succ: [BB3, BB7]
+
+            ; pred: [BB2, BB6]
+            BB7: ; [loop exit]
+                v_v2 = ϕ(BB2: v_v1, BB6: v_v3)
+
+                return(v_v2)
+            ; succ: [BB1]
+
+            ; pred: [BB7]
+            BB1: ; [exit]
+            ; succ: []
+
+            ; pred: [BB2]
+            BB3: ; [loop preheader]
+                v_v3 = 2
+                jmp BB4
+            ; succ: [BB4]
+
+            ; pred: [BB3, BB5]
+            BB4: ; [loop header]
+                i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
+
+                N_v1 = foo()
+                %3_v1 = N_v1 == 0
+                cmp(%3_v1, 1)
+                if CF == 1 then jmp BB8 else jmp BB9
+            ; succ: [BB9, BB8]
+
+            ; pred: [BB4]
+            BB8: ; [then]
+                jmp BB6
+            ; succ: [BB6]
+
+            ; pred: [BB8, BB5]
+            BB6: ; [loop tail]
+                jmp BB7
+            ; succ: [BB7]
+
+            ; pred: [BB4]
+            BB9: ; [merge]
+                a_v1 = 0
+                jmp BB10
+            ; succ: [BB10]
+
+            ; pred: [BB9]
+            BB10: ; [condition check]
+                j_v1 = 0
+                %6_v1 = j_v1 &lt; 10
+                cmp(%6_v1, 1)
+                if CF == 1 then jmp BB11 else jmp BB15
+            ; succ: [BB11, BB15]
+
+            ; pred: [BB10, BB14]
+            BB15: ; [loop exit]
+                jmp BB5
+            ; succ: [BB5]
+
+            ; pred: [BB15]
+            BB5: ; [loop update]
+                i_v3 = i_v2 + 1
+                %18_v1 = i_v3 &lt; 10
+                cmp(%18_v1, 1)
+                if CF == 1 then jmp BB4 else jmp BB7
+            ; succ: [BB4, BB6]
+
+            ; pred: [BB10]
+            BB11: ; [loop preheader]
+                N_v2 = 10
+                jmp BB12
+            ; succ: [BB12]
+
+            ; pred: [BB11, BB13]
+            BB12: ; [loop header]
+                j_v2 = ϕ(BB11: j_v1, BB13: j_v3)
+
+                a_v2 = N_v2 + j_v2
+                jmp BB13
+            ; succ: [BB13]
+
+            ; pred: [BB12]
+            BB13: ; [loop update]
+                j_v3 = j_v2 + 1
+                %13_v1 = j_v3 &lt; 10
+                cmp(%13_v1, 1)
+                if CF == 1 then jmp BB12 else jmp BB15
+            ; succ: [BB12, BB14]
+
+            ; pred: [BB13]
+            BB14: ; [loop tail]
+                jmp BB15
+            ; succ: [BB15]
         """).strip()
         self.assert_ir(src, expected_ir)
 
-    # def test_hoist_with_outside_variables(self):
-    #     """Test hoisting operations that depend on variables defined outside the loop."""
-    #     src = self.make_main("""
-    #     x int = 5;
-    #     y int = 10;
-    #     for (i int = 0; i < 10; i = i + 1) {
-    #         a int = x + y;
-    #     }
-    #     return 0;
-    #     """)
-    #
-    #     expected_ir = textwrap.dedent("""
-    #     """).strip()
-    #     self.assert_ir(src, expected_ir)
-    #
-    # def test_no_hoist_loop_variable(self):
-    #     """Test that operations depending on loop variables are NOT hoisted."""
-    #     src = self.make_main("""
-    #     x int = 5;
-    #     for (i int = 0; i < 10; i = i + 1) {
-    #         a int = i + x;
-    #     }
-    #     return 0;
-    #     """)
-    #
-    #     expected_ir = textwrap.dedent("""
-    #     """).strip()
-    #     self.assert_ir(src, expected_ir)
-    #
-    # def test_cascading_hoist(self):
-    #     """Test cascading hoisting where one hoisted instruction makes another hoistable."""
-    #     src = self.make_main("""
-    #     x int = 5;
-    #     y int = 10;
-    #     for (i int = 0; i < 10; i = i + 1) {
-    #         a int = x + y;
-    #         b int = a * 2;
-    #     }
-    #     return 0;
-    #     """)
-    #
-    #     expected_ir = textwrap.dedent("""
-    #     """).strip()
-    #     self.assert_ir(src, expected_ir)
-    #
-    # def test_mixed_hoistable_and_non_hoistable(self):
-    #     """Test a loop with both hoistable and non-hoistable instructions."""
-    #     src = self.make_main("""
-    #     x int = 5;
-    #     for (i int = 0; i < 10; i = i + 1) {
-    #         a int = x * 2;
-    #         b int = i + 1;
-    #         c int = a + b;
-    #     }
-    #     return 0;
-    #     """)
-    #
-    #     expected_ir = textwrap.dedent("""
-    #     """).strip()
-    #     self.assert_ir(src, expected_ir)
+    def test_cascading_hoist(self):
+        src = self.make_main("""
+        x int = 5;
+        y int = 10;
+        for (i int = 0; i < 10; i = i + 1) {
+            a int = x + y;
+            b int = a * 2;
+        }
+        return 0;
+        """)
+
+        expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                x_v1 = 5
+                y_v1 = 10
+                jmp BB2
+            ; succ: [BB2]
+
+            ; pred: [BB0]
+            BB2: ; [condition check]
+                i_v1 = 0
+                %0_v1 = i_v1 &lt; 10
+                cmp(%0_v1, 1)
+                if CF == 1 then jmp BB3 else jmp BB7
+            ; succ: [BB3, BB7]
+
+            ; pred: [BB2, BB6]
+            BB7: ; [loop exit]
+                return(0)
+            ; succ: [BB1]
+
+            ; pred: [BB7]
+            BB1: ; [exit]
+            ; succ: []
+
+            ; pred: [BB2]
+            BB3: ; [loop preheader]
+                a_v1 = x_v1 + y_v1
+                b_v1 = a_v1 * 2
+                jmp BB4
+            ; succ: [BB4]
+
+            ; pred: [BB3, BB5]
+            BB4: ; [loop header]
+                i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
+
+                jmp BB5
+            ; succ: [BB5]
+
+            ; pred: [BB4]
+            BB5: ; [loop update]
+                i_v3 = i_v2 + 1
+                %9_v1 = i_v3 &lt; 10
+                cmp(%9_v1, 1)
+                if CF == 1 then jmp BB4 else jmp BB7
+            ; succ: [BB4, BB6]
+
+            ; pred: [BB5]
+            BB6: ; [loop tail]
+                jmp BB7
+            ; succ: [BB7]
+        """).strip()
+        self.assert_ir(src, expected_ir)
+
+    def test_mixed_hoistable_and_non_hoistable(self):
+        """Test a loop with both hoistable and non-hoistable instructions."""
+        src = self.make_main("""
+        x int = 5;
+        for (i int = 0; i < 10; i = i + 1) {
+            a int = x * 2;
+            b int = i + 1;
+            c int = a + b;
+        }
+        return 0;
+        """)
+
+        expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                x_v1 = 5
+                jmp BB2
+            ; succ: [BB2]
+
+            ; pred: [BB0]
+            BB2: ; [condition check]
+                i_v1 = 0
+                %0_v1 = i_v1 &lt; 10
+                cmp(%0_v1, 1)
+                if CF == 1 then jmp BB3 else jmp BB7
+            ; succ: [BB3, BB7]
+
+            ; pred: [BB2, BB6]
+            BB7: ; [loop exit]
+                return(0)
+            ; succ: [BB1]
+
+            ; pred: [BB7]
+            BB1: ; [exit]
+            ; succ: []
+
+            ; pred: [BB2]
+            BB3: ; [loop preheader]
+                a_v1 = x_v1 * 2
+                jmp BB4
+            ; succ: [BB4]
+
+            ; pred: [BB3, BB5]
+            BB4: ; [loop header]
+                i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
+
+                b_v1 = i_v2 + 1
+                c_v1 = a_v1 + b_v1
+                jmp BB5
+            ; succ: [BB5]
+
+            ; pred: [BB4]
+            BB5: ; [loop update]
+                i_v3 = i_v2 + 1
+                %11_v1 = i_v3 &lt; 10
+                cmp(%11_v1, 1)
+                if CF == 1 then jmp BB4 else jmp BB7
+            ; succ: [BB4, BB6]
+
+            ; pred: [BB5]
+            BB6: ; [loop tail]
+                jmp BB7
+            ; succ: [BB7]
+        """).strip()
+        self.assert_ir(src, expected_ir)

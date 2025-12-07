@@ -259,7 +259,7 @@ class CFG:
 
         for bb in self:
             for succ in bb.succ:
-                res += f'"{bb.label}" -> "{succ.label}" [headport="n", tailport="s", penwidth=2, color="{bb_colors[succ.label]};0.5:{bb_colors[bb.label]}"]\n'
+                res += f'"{bb.label}" -> "{succ.label}" [headport="n", tailport="s", penwidth=3, color="{bb_colors[succ.label]};0.5:{bb_colors[bb.label]}"]\n'
 
         for parent, children in reversed_idom_tree.items():
             for child in children:
