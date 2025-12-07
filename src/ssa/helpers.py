@@ -1,22 +1,16 @@
-import random
+from hashlib import sha256
 
-
-random.seed(42)
-
-step = 256
-cur = 128
 
 bb_colors = {}
-i = 0
 
 
 def color_label(l: str) -> str:
-    global cur, step
     if bb_colors.get(l) is None:
-        cur = random.randint(0, 255)
-        r = hex((cur + 192) % 256)[2:]
-        g = hex((cur + 86) % 256)[2:]
-        b = hex(cur % 256)[2:]
+        h = sha256(l.encode()).hexdigest()
+
+        r = h[0:2]
+        g = h[2:4]
+        b = h[4:6]
 
         if len(r) == 1:
             r = "0" + r
@@ -26,10 +20,5 @@ def color_label(l: str) -> str:
             g = "0" + g
 
         bb_colors[l] = f"#{r}{g}{b}"
-
-        # cur += step
-        # if cur >= 256:
-        #     step //= 2
-        #     cur = step // 2
 
     return f'<B><font color="{bb_colors[l]}">{l}</font></B>'

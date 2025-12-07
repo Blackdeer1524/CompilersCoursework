@@ -9,6 +9,7 @@ from src.ssa.cfg import (
     BasicBlock,
     InstAssign,
     Instruction,
+    OpLoad,
     Operation,
     OpBinary,
     OpUnary,
@@ -198,6 +199,8 @@ class LICM:
     def _collect_operands(self, rhs: Operation | SSAValue) -> Iterable[SSAValue]:
         if isinstance(rhs, Operation):
             match rhs:
+                case OpLoad(addr):
+                    return [addr]
                 case OpBinary(_, left, right):
                     return [left, right]
                 case OpUnary(_, val):

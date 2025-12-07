@@ -4,13 +4,16 @@ from typing import Optional
 from src.ssa.cfg import (
     CFG,
     BasicBlock,
+    InstArrayInit,
     InstAssign,
     InstCmp,
     InstPhi,
     InstReturn,
+    InstStore,
     Instruction,
     OpBinary,
     OpCall,
+    OpLoad,
     OpUnary,
     Operation,
     SSAValue,
@@ -67,6 +70,8 @@ class SSABuilder:
                     # uses from RHS
                     if isinstance(rhs, Operation):
                         match rhs:
+                            case OpLoad(addr):
+                                use_val(addr)
                             case OpBinary(_, left, right):
                                 use_val(left)
                                 use_val(right)
@@ -84,9 +89,13 @@ class SSABuilder:
                 case InstReturn(val):
                     if val is not None:
                         use_val(val)
+                case InstArrayInit(lhs):
+                    defs.add(lhs.name)
+                case InstStore(addr, rhs):
+                    uses.add(addr.name)
+                    use_val(rhs)
                 case _:
                     pass
-
         return uses, defs
 
     def _put_phis(self):
@@ -136,6 +145,11 @@ class SSABuilder:
                 if val is None:
                     return
                 self._rename_ssa_val(val)
+            case InstArrayInit(lhs):
+                self._new_version(lhs)
+            case InstStore(addr, val):
+                self._rename_ssa_val(addr)
+                self._rename_ssa_val(val)
 
     def _rename_ssa_val(self, val: SSAValue):
         if isinstance(val, SSAVariable):
@@ -143,6 +157,8 @@ class SSABuilder:
 
     def _rename_operation(self, op: Operation):
         match op:
+            case OpLoad(addr):
+                self._rename_ssa_val(addr)
             case OpCall():
                 for arg in op.args:
                     self._rename_ssa_val(arg)

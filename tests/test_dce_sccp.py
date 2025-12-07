@@ -12,8 +12,8 @@ class TestSCCPAndDCE(base.TestBase):
 
     def test_dead_on_condition(self):
         src = self.make_main("""
-            a int = 0; // dead
-            N int = 0;
+            let a int = 0; // dead
+            let N int = 0;
             if (N == 0) {
                 return N;
             }
@@ -38,10 +38,10 @@ class TestSCCPAndDCE(base.TestBase):
 
     def test_dead_loop_causes_dead_code(self):
         src = self.make_main("""
-            N int = 0;
-            a int = 0;
-            c int = 0;
-            for (i int = 0; i < N; i = i + 1) {
+            let N int = 0;
+            let a int = 0;
+            let c int = 0;
+            for (let i int = 0; i < N; i = i + 1) {
                 a = (a + 1) * 2;
             }
             return c;

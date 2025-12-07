@@ -228,11 +228,12 @@ class TestLexer(unittest.TestCase):
 
     def test_assignment(self):
         """Test lexing an assignment statement."""
-        source = "a int = 1;"
+        source = "let a int = 1;"
         lexer = Lexer(source)
         tokens = lexer.tokenize()
 
         expected_types = [
+            TokenType.LET,
             TokenType.IDENTIFIER,
             TokenType.INT,
             TokenType.ASSIGN,
@@ -243,8 +244,8 @@ class TestLexer(unittest.TestCase):
 
         token_types = [t.type for t in tokens]
         self.assertEqual(token_types, expected_types)
-        self.assertEqual(tokens[0].value, "a")
-        self.assertEqual(tokens[3].value, "1")
+        self.assertEqual(tokens[1].value, "a")
+        self.assertEqual(tokens[4].value, "1")
 
     def test_expression_operators(self):
         """Test lexing expressions with various operators."""
@@ -372,13 +373,14 @@ class TestLexer(unittest.TestCase):
 
     def test_for_loop(self):
         """Test lexing a for loop."""
-        source = "for (i int = 0; i < 10; i = i + 1) { }"
+        source = "for (let i int = 0; i < 10; i = i + 1) { }"
         lexer = Lexer(source)
         tokens = lexer.tokenize()
 
         expected_types = [
             TokenType.FOR,
             TokenType.LPAREN,
+            TokenType.LET,
             TokenType.IDENTIFIER,
             TokenType.INT,
             TokenType.ASSIGN,

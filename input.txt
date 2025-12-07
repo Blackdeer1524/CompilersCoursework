@@ -1,18 +1,35 @@
 func main() -> int {
-    v int = 0;
-    for (i int = 0; i < 10; i = i + 1) {
-        v = 2;          // hoist
-        N int = foo();
-        if (N == 0) {
-            break;
-        }
-        a int = 0;
-        for (j int = 0; j < 10; j = j + 1) {
-            N = 10;     // hoist before break
-            a = N + j;  
+    let A [64][64]int = {};
+    let B [64][64]int = {};
+    let C [64][64]int = {};
+    for (let i int = 0; i < 64; i = i + 1) {
+        for (let j int = 0; j < 64; j = j + 1) {
+            for (let k int = 0; k < 64; k = k + 1) {
+                C[i][j] = A[i][k] * B[k][j];
+            }
         }
     }
-    return v;
+    print(C);
+
+    return 0;
+}
+
+func print(C [64][64]int) -> void {
+}
+
+func bar() -> int {
+    let A [64][64]int = {};
+    let B [64][64]int = {};
+    let C [64][64]int = {};
+    for (let i int = 0; i < 64; i = i + 1) {
+        for (let j int = 0; j < 64; j = j + 1) {
+            for (let k int = 0; k < 64; k = k + 1) {
+                C[i][j] = A[i][k] * B[k][j];
+            }
+        }
+    }
+    return 1;
+    return 0;
 }
 
 func foo() -> int {

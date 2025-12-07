@@ -10,8 +10,8 @@ class TestLICM(base.TestBase):
 
     def test_simple(self):
         src = self.make_main("""
-            a int = 0;
-            for (i int = 0; i < 10; i = i + 1) {
+            let a int = 0;
+            for (let i int = 0; i < 10; i = i + 1) {
                 a = 10;
             }
             return a;
@@ -73,9 +73,9 @@ class TestLICM(base.TestBase):
 
     def test_nested_loops(self):
         src = self.make_main("""
-            a int = 0;
-            for (i int = 0; i < 10; i = i + 1) {
-                for (j int = 0; j < 10; j = j + 1) {
+            let a int = 0;
+            for (let i int = 0; i < 10; i = i + 1) {
+                for (let j int = 0; j < 10; j = j + 1) {
                 }
             }
             return a;
@@ -173,9 +173,9 @@ class TestLICM(base.TestBase):
     def test_dead_loop_hoisting(self):
         src = """
             func main() -> int {
-                N int = foo(); 
-                x int = 0;
-                for (i int = 0; i < N; i = i + 1) {
+                let N int = foo(); 
+                let x int = 0;
+                for (let i int = 0; i < N; i = i + 1) {
                     x = 11; 
                 }
                 return x;
@@ -244,9 +244,9 @@ class TestLICM(base.TestBase):
     def test_conditional_reassignment(self):
         src = """
             func main() -> int {
-                v int = 0;
-                for (i int = 0; i < 10; i = i + 1) {
-                    N int = foo();
+                let v int = 0;
+                for (let i int = 0; i < 10; i = i + 1) {
+                    let N int = foo();
                     if (N == 0) {
                         v = 2;
                     }
@@ -339,9 +339,9 @@ class TestLICM(base.TestBase):
     def test_hoist_before_break(self):
         src = """
             func main() -> int {
-                v int = 0;
-                N int = 0;
-                for (i int = 0; i < 10; i = i + 1) {
+                let v int = 0;
+                let N int = 0;
+                for (let i int = 0; i < 10; i = i + 1) {
                     v = 2;  // should be hoisted
                     if (N == 0) {
                         break;
@@ -429,15 +429,15 @@ class TestLICM(base.TestBase):
     def test_complicated_hoist(self):
         src = """
         func main() -> int {
-            v int = 0;
-            for (i int = 0; i < 10; i = i + 1) {
+            let v int = 0;
+            for (let i int = 0; i < 10; i = i + 1) {
                 v = 2;          // hoist
-                N int = foo();
+                let N int = foo();
                 if (N == 0) {
                     break;
                 }
-                a int = 0;
-                for (j int = 0; j < 10; j = j + 1) {
+                let a int = 0;
+                for (let j int = 0; j < 10; j = j + 1) {
                     N = 10;     // hoist before break
                     a = N + j;  
                 }
@@ -560,11 +560,11 @@ class TestLICM(base.TestBase):
 
     def test_cascading_hoist(self):
         src = self.make_main("""
-        x int = 5;
-        y int = 10;
-        for (i int = 0; i < 10; i = i + 1) {
-            a int = x + y;
-            b int = a * 2;
+        let x int = 5;
+        let y int = 10;
+        for (let i int = 0; i < 10; i = i + 1) {
+            let a int = x + y;
+            let b int = a * 2;
         }
         return 0;
         """)
@@ -626,11 +626,11 @@ class TestLICM(base.TestBase):
     def test_mixed_hoistable_and_non_hoistable(self):
         """Test a loop with both hoistable and non-hoistable instructions."""
         src = self.make_main("""
-        x int = 5;
-        for (i int = 0; i < 10; i = i + 1) {
-            a int = x * 2;
-            b int = i + 1;
-            c int = a + b;
+        let x int = 5;
+        for (let i int = 0; i < 10; i = i + 1) {
+            let a int = x * 2;
+            let b int = i + 1;
+            let c int = a + b;
         }
         return 0;
         """)

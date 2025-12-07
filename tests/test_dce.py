@@ -11,7 +11,7 @@ class TestDCE(base.TestBase):
 
     def test_simple(self):
         src = self.make_main("""
-        a int = 0;
+        let a int = 0;
         return a;
         """)
 
@@ -31,8 +31,8 @@ class TestDCE(base.TestBase):
 
     def test_complex_elim(self):
         src = self.make_main("""
-        a int = 0;
-        for (i int = 0; i < 10; i = i + 1) {
+        let a int = 0;
+        for (let i int = 0; i < 10; i = i + 1) {
             a = a * 2;
         }
         return 1;
@@ -91,12 +91,12 @@ class TestDCE(base.TestBase):
 
     def test_dead_reassign(self):
         src = self.make_main("""
-            a int = 1;
+            let a int = 1;
             if (a == 1) { 
                 a = 3;
             }
             
-            a = 12;  // unused var -> dead code
+            a = 12;  // unused let -> dead code
             return 1;
         """)
 

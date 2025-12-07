@@ -70,8 +70,24 @@ class TestBase(unittest.TestCase):
         no_opts_graph = ir_to_graphviz(no_opts_ir)
         no_opts_graph = re.sub(r"(BB\d+)", r"\1^", no_opts_graph)
 
+        block_src_code = (
+            textwrap.dedent(src)
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\n", '<br ALIGN="left"/>')
+            + '<br ALIGN="left"/>'
+        )
+        source_block = f'"src" [label=<{block_src_code}>]'
+
         message = textwrap.dedent(f"""
         digraph G {{
+            subgraph cluster_source_code {{
+                node [shape=box]
+                label="Source";
+                color=blue;
+            {source_block}
+            }}
+        
             subgraph cluster_expected {{
                 label="Expected";
                 color=green;
@@ -83,7 +99,7 @@ class TestBase(unittest.TestCase):
                 color=red;
             {actual_graph}
             }}
-
+                                  
             subgraph cluster_original {{
                 label="Original";
                 color=blue;

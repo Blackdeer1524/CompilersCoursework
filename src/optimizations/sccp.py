@@ -5,12 +5,15 @@ from typing import Literal, Optional, Iterable
 from src.ssa.cfg import (
     CFG,
     BasicBlock,
+    InstArrayInit,
+    InstStore,
     InstUncondJump,
     Instruction,
     InstAssign,
     InstCmp,
     InstPhi,
     InstReturn,
+    OpLoad,
     Operation,
     OpBinary,
     OpUnary,
@@ -125,6 +128,14 @@ class SCCP:
                         if value is not None:
                             for v in self._iter_uses_from_vals([value]):
                                 self.uses[v].add(inst)
+                    case InstStore(lhs, addr):
+                        if lhs.version is not None:
+                            self.defs[(lhs.name, lhs.version)] = inst
+                        for v in self._iter_uses_from_rhs(addr):
+                            self.uses[v].add(inst)
+                    case InstArrayInit(lhs):
+                        if lhs.version is not None:
+                            self.defs[(lhs.name, lhs.version)] = inst
                     case _:
                         pass
 
@@ -133,6 +144,8 @@ class SCCP:
     ) -> Iterable[tuple[str, int]]:
         if isinstance(rhs, Operation):
             match rhs:
+                case OpLoad(addr):
+                    yield from self._iter_uses_from_vals([addr])
                 case OpBinary(_, left, right):
                     yield from self._iter_uses_from_vals([left, right])
                 case OpUnary(_, val):
@@ -197,6 +210,10 @@ class SCCP:
                     self._evaluate_branch(inst, bb)
                 case InstUncondJump(target):
                     self._mark_edge_feasible(bb, target)
+                case InstArrayInit(_, _):
+                    self._evaluate_array_init(inst)
+                case InstStore(_, _):
+                    self._evaluate_store(inst)
                 case _:
                     pass
 
@@ -213,8 +230,9 @@ class SCCP:
                     bb = self.inst_block[user]
                     if bb in self.executable_blocks:
                         self._evaluate_branch(user, bb)
+                case InstStore():
+                    self._evaluate_store(user)
                 case _:
-                    # InstReturn or others - nothing to propagate
                     pass
 
     def _evaluate_phi(self, phi: InstPhi):
@@ -247,6 +265,8 @@ class SCCP:
     def _evaluate_rhs(self, rhs: Operation | SSAValue) -> LatticeValue:
         if isinstance(rhs, Operation):
             match rhs:
+                case OpLoad():
+                    return LatticeValue.nac()
                 case OpBinary(op, left, right):
                     lv = self._get_lattice_of_value(left)
                     rv = self._get_lattice_of_value(right)
@@ -259,6 +279,14 @@ class SCCP:
                     return LatticeValue.nac()
         else:
             return self._get_lattice_of_value(rhs)
+        return LatticeValue.nac()
+
+    def _evaluate_array_init(self, inst: InstArrayInit):
+        lhs = inst.lhs
+        assert lhs.version is not None
+        self._set_lattice((lhs.name, lhs.version), LatticeValue.nac())
+
+    def _evaluate_store(self, inst: InstStore):
         return LatticeValue.nac()
 
     def _truthy(self, v: int) -> int:
@@ -344,7 +372,7 @@ class SCCP:
     def _rewrite_cfg(self):
         assert self.cfg is not None
 
-        for bb in self.cfg:
+        for bb in list(self.cfg):
             if bb in self.executable_blocks:
                 continue
 
@@ -355,6 +383,7 @@ class SCCP:
                 succ.preds.remove(bb)
                 for phi in succ.phi_nodes.values():
                     phi.rhs.pop(bb.label, None)
+
             bb.succ = []
             bb.preds = []
 
@@ -377,23 +406,24 @@ class SCCP:
                         new_rhs = self._replace_in_rhs(rhs)
                         # If operation now constant, collapse
                         if isinstance(new_rhs, Operation):
-                            if isinstance(new_rhs, OpBinary):
-                                lv = self._get_lattice_of_value(new_rhs.left)
-                                rv = self._get_lattice_of_value(new_rhs.right)
-                                folded = self._eval_binary(new_rhs.type, lv, rv)
-                                if folded.is_const():
-                                    inst.rhs = SSAConstant(folded.value or 0)
-                                else:
+                            match new_rhs:
+                                case OpBinary():
+                                    lv = self._get_lattice_of_value(new_rhs.left)
+                                    rv = self._get_lattice_of_value(new_rhs.right)
+                                    folded = self._eval_binary(new_rhs.type, lv, rv)
+                                    if folded.is_const():
+                                        inst.rhs = SSAConstant(folded.value or 0)
+                                    else:
+                                        inst.rhs = new_rhs
+                                case OpUnary():
+                                    vv = self._get_lattice_of_value(new_rhs.val)
+                                    folded = self._eval_unary(new_rhs.type, vv)
+                                    if folded.is_const():
+                                        inst.rhs = SSAConstant(folded.value or 0)
+                                    else:
+                                        inst.rhs = new_rhs
+                                case _:
                                     inst.rhs = new_rhs
-                            elif isinstance(new_rhs, OpUnary):
-                                vv = self._get_lattice_of_value(new_rhs.val)
-                                folded = self._eval_unary(new_rhs.type, vv)
-                                if folded.is_const():
-                                    inst.rhs = SSAConstant(folded.value or 0)
-                                else:
-                                    inst.rhs = new_rhs
-                            else:
-                                inst.rhs = new_rhs
                         else:
                             inst.rhs = new_rhs
                     case InstCmp(left, right):

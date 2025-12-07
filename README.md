@@ -8,27 +8,39 @@ func foo(arg int, foo int) -> int {
 } 
 
 func main() -> void {
-    a int = 1;
-    b int = 2 + (-a);
+    let a int = 1;
+    let b int = 2 + (-a);
+    
+    // array initialization
+    let arr [64]int = {};
+    let matrix [128][64]int = {};
+    
+    // array element access
+    let x int = arr[0];
+    let y int = matrix[10][20];
+    
+    // array element assignment
+    arr[0] = 42;
+    matrix[i][j] = 100;
     
     // unconditional loop
     for {
         ...
     }
     
-    i int = 0;
+    let i int = 0;
     if (i < 10) {
-        a int = 20; // forbidden!!!
+        let a int = 20; // forbidden!!!
     }
     
     // `for` loop
-    for (i int = 0; i < 10; i = i + 1) {
+    for (let i int = 0; i < 10; i = i + 1) {
     }
     
     // function calling
     foo(1, 2);
     
-    a int = 1 < 20;
+    let a int = 1 < 20;
 
     // branching
     if (i <= 10 || i > 40 && i + 2 < i - 1) {
@@ -38,7 +50,7 @@ func main() -> void {
     }
     
     // break and continue
-    for (i int = 0; i < 10; i = i + 1) {
+    for (let i int = 0; i < 10; i = i + 1) {
         if (i == 5) {
             break;
         }
@@ -60,7 +72,7 @@ ARG_LIST ::= EPSILON | ARG ("," ARG)*
 
 ARG ::= %name% %type%
 
-TYPE ::= int | void
+TYPE ::= int | ("[" %integer% "]")+ int | void
 
 BLOCK ::= "{" STATEMENTS "}"
 
@@ -77,9 +89,11 @@ STATEMENT ::=
     | CONTINUE ";"
     | BLOCK
 
-ASSIGNMENT ::= %name% %type% "=" EXPR ";"
+ASSIGNMENT ::= "let" %name% %type% "=" (EXPR | "{}") ";"
 
-REASSIGNMENT ::= %name% "=" EXPR ";"
+REASSIGNMENT ::= EXPR_LVALUE "=" EXPR ";"
+
+EXPR_LVALUE ::= %name% ("[" EXPR "]")*
 
 CONDITION ::= if "(" EXPR ")" BLOCK [else BLOCK]
 
@@ -115,7 +129,7 @@ EXPR_UNARY ::=
     | "!" EXPR_UNARY
 
 EXPR_ATOM ::= 
-    %name%
+    %name% ("[" EXPR "]")*
     | %integer%
     | "(" EXPR ")"
     | FUNCTION_CALL
