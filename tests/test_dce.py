@@ -78,7 +78,7 @@ class TestDCE(base.TestBase):
                 i_v3 = i_v2 + 1
                 %7_v1 = i_v3 &lt; 10
                 cmp(%7_v1, 1)
-                if CF == 1 then jmp BB4 else jmp BB7
+                if CF == 1 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
             ; pred: [BB5]
@@ -158,7 +158,23 @@ class TestDCE(base.TestBase):
             return 0;
         """)
 
-        expected_ir = textwrap.dedent("""""").strip()
+        expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                arr_v1 = array_init([64])
+                %1_v1 = 0 * 1
+                %2_v1 = arr_v1 + %1_v1
+                *(%2_v1) = 42
+                %5_v1 = 10 * 1
+                %6_v1 = arr_v1 + %5_v1
+                *(%6_v1) = 100
+                return(0)
+            ; succ: [BB1]
+
+            ; pred: [BB0]
+            BB1: ; [exit]
+            ; succ: []
+        """).strip()
 
         self.assert_ir(src, expected_ir)
 
@@ -170,7 +186,16 @@ class TestDCE(base.TestBase):
             return 0;
         """)
 
-        expected_ir = textwrap.dedent("""""").strip()
+        expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                return(0)
+            ; succ: [BB1]
+
+            ; pred: [BB0]
+            BB1: ; [exit]
+            ; succ: []
+        """).strip()
 
         self.assert_ir(src, expected_ir)
 
@@ -182,7 +207,16 @@ class TestDCE(base.TestBase):
             return 0;
         """)
 
-        expected_ir = textwrap.dedent("""""").strip()
+        expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                return(0)
+            ; succ: [BB1]
+
+            ; pred: [BB0]
+            BB1: ; [exit]
+            ; succ: []
+        """).strip()
 
         self.assert_ir(src, expected_ir)
 
@@ -198,7 +232,34 @@ class TestDCE(base.TestBase):
             return 0;
         """)
 
-        expected_ir = textwrap.dedent("""""").strip()
+        expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                a_v1 = 0
+                %0_v1 = a_v1 == 0
+                cmp(%0_v1, 1)
+                if CF == 1 then jmp BB2 else jmp BB4
+            ; succ: [BB4, BB2]
+
+            ; pred: [BB0]
+            BB2: ; [then]
+                jmp BB3
+            ; succ: [BB3]
+
+            ; pred: [BB4, BB2]
+            BB3: ; [merge]
+                return(0)
+            ; succ: [BB1]
+
+            ; pred: [BB3]
+            BB1: ; [exit]
+            ; succ: []
+
+            ; pred: [BB0]
+            BB4: ; [else]
+                jmp BB3
+            ; succ: [BB3] 
+        """).strip()
 
         self.assert_ir(src, expected_ir)
 
@@ -213,7 +274,92 @@ class TestDCE(base.TestBase):
             return 0;
         """)
 
-        expected_ir = textwrap.dedent("""""").strip()
+        expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                jmp BB2
+            ; succ: [BB2]
+
+            ; pred: [BB0]
+            BB2: ; [condition check]
+                i_v1 = 0
+                %0_v1 = i_v1 &lt; 10
+                cmp(%0_v1, 1)
+                if CF == 1 then jmp BB3 else jmp BB7
+            ; succ: [BB3, BB7]
+
+            ; pred: [BB2, BB6]
+            BB7: ; [loop exit]
+                return(0)
+            ; succ: [BB1]
+
+            ; pred: [BB7]
+            BB1: ; [exit]
+            ; succ: []
+
+            ; pred: [BB2]
+            BB3: ; [loop preheader]
+                jmp BB4
+            ; succ: [BB4]
+
+            ; pred: [BB3, BB5]
+            BB4: ; [loop header]
+                i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
+
+                jmp BB8
+            ; succ: [BB8]
+
+            ; pred: [BB4]
+            BB8: ; [condition check]
+                j_v1 = 0
+                %3_v1 = j_v1 &lt; 10
+                cmp(%3_v1, 1)
+                if CF == 1 then jmp BB9 else jmp BB13
+            ; succ: [BB9, BB13]
+
+            ; pred: [BB8, BB12]
+            BB13: ; [loop exit]
+                jmp BB5
+            ; succ: [BB5]
+
+            ; pred: [BB13]
+            BB5: ; [loop update]
+                i_v3 = i_v2 + 1
+                %15_v1 = i_v3 &lt; 10
+                cmp(%15_v1, 1)
+                if CF == 1 then jmp BB4 else jmp BB6
+            ; succ: [BB4, BB6]
+
+            ; pred: [BB5]
+            BB6: ; [loop tail]
+                jmp BB7
+            ; succ: [BB7]
+
+            ; pred: [BB8]
+            BB9: ; [loop preheader]
+                jmp BB10
+            ; succ: [BB10]
+
+            ; pred: [BB9, BB11]
+            BB10: ; [loop header]
+                j_v2 = ϕ(BB9: j_v1, BB11: j_v3)
+
+                jmp BB11
+            ; succ: [BB11]
+
+            ; pred: [BB10]
+            BB11: ; [loop update]
+                j_v3 = j_v2 + 1
+                %10_v1 = j_v3 &lt; 10
+                cmp(%10_v1, 1)
+                if CF == 1 then jmp BB10 else jmp BB12
+            ; succ: [BB10, BB12]
+
+            ; pred: [BB11]
+            BB12: ; [loop tail]
+                jmp BB13
+            ; succ: [BB13]
+        """).strip()
 
         self.assert_ir(src, expected_ir)
 
@@ -226,7 +372,16 @@ class TestDCE(base.TestBase):
             return b;
         """)
 
-        expected_ir = textwrap.dedent("""""").strip()
+        expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                return(0)
+            ; succ: [BB1]
+
+            ; pred: [BB0]
+            BB1: ; [exit]
+            ; succ: [] 
+        """).strip()
 
         self.assert_ir(src, expected_ir)
 
@@ -239,7 +394,16 @@ class TestDCE(base.TestBase):
             return 0;
         """)
 
-        expected_ir = textwrap.dedent("""""").strip()
+        expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                return(0)
+            ; succ: [BB1]
+
+            ; pred: [BB0]
+            BB1: ; [exit]
+            ; succ: [] 
+        """).strip()
 
         self.assert_ir(src, expected_ir)
 

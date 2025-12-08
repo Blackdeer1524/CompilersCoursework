@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
+from collections import deque
 from dataclasses import dataclass, field
 import re
-from typing import Iterator, Optional, Sequence
+from typing import Iterable, Iterator, Optional, Sequence
 from src.parsing.parser import (
     Program,
     Function,
@@ -28,8 +29,8 @@ from src.parsing.parser import (
     LValueIdentifier,
     LValueArrayAccess,
 )
-from src.parsing.semantic import Type
-from src.ssa.helpers import color_label, bb_colors
+from src.parsing.semantic import SymbolTable, Type
+from src.ssa.helpers import color_label, unwrap
 
 
 @dataclass
@@ -39,6 +40,7 @@ class SSAValue(ABC): ...
 @dataclass
 class SSAVariable(SSAValue):
     name: str
+    base_pointer: Optional[str] = field(default=None)
     version: int | None = field(default=None)
 
     def __repr__(self):
@@ -179,9 +181,13 @@ class InstGetArgument(Instruction):
 
 
 class BasicBlock:
-    def __init__(self, label: str, meta: Optional[str] = None):
+    def __init__(
+        self, label: str, symbol_table: SymbolTable, meta: Optional[str] = None
+    ):
         self.label = label
         self.meta = meta
+
+        self.symbol_table: SymbolTable = symbol_table
 
         self.instructions: list[Instruction] = []
         self.phi_nodes: dict[str, InstPhi] = {}
@@ -190,7 +196,9 @@ class BasicBlock:
 
     def insert_phi(self, name: str):
         if self.phi_nodes.get(name) is None:
-            self.phi_nodes[name] = InstPhi(SSAVariable(name), {})
+            type_info = self.symbol_table.lookup_variable(name)
+            assert type_info is not None
+            self.phi_nodes[name] = InstPhi(SSAVariable(name, type_info.is_array()), {})
 
     def append(self, inst: Instruction):
         self.instructions.append(inst)
@@ -280,6 +288,15 @@ class CFG:
     exit: BasicBlock
     args: list["Argument"] = field(default_factory=list)  # Function arguments
 
+    def bfs(self) -> Iterator[tuple[int, BasicBlock]]:
+        visited_blocks = set()
+        q = deque([(0, self.entry)])
+        while len(q) > 0:
+            (depth, bb) = q.popleft()
+            visited_blocks.add(bb)
+            yield (depth, bb)
+            q.extend(((depth + 1, s) for s in bb.succ if s not in visited_blocks))
+
     def __iter__(self) -> Iterator[BasicBlock]:
         visited_blocks = set()
         q = [self.entry]
@@ -303,7 +320,11 @@ class CFG:
 
         for bb in self:
             for succ in bb.succ:
-                res += f'"{bb.label}" -> "{succ.label}" [headport="n", tailport="s", penwidth=3, color="{bb_colors[succ.label]};0.5:{bb_colors[bb.label]}"]\n'
+                res += (
+                    f'"{bb.label}" -> "{succ.label}" '
+                    + '[headport="n", tailport="s", penwidth=3, '
+                    + 'color="{bb_colors[succ.label]};0.5:{bb_colors[bb.label]}"]\n'
+                )
 
         for parent, children in reversed_idom_tree.items():
             for child in children:
@@ -328,14 +349,14 @@ class CFGBuilder:
     def __init__(self):
         self.block_counter = 0
         self.tmp_var_counter = 0
-        self.current_block: Optional[BasicBlock] = None
+        self.cur_block: Optional[BasicBlock] = None
         self.break_targets: list[BasicBlock] = []  # Stack of break targets
         self.continue_targets: list[BasicBlock] = []  # Stack of continue targets
         self.program: Optional[Program] = None
         self.current_function: Optional[Function] = None
 
-    def _get_tmp_var(self) -> SSAVariable:
-        name = SSAVariable(f"%{self.tmp_var_counter}")
+    def _get_tmp_var(self) -> str:
+        name = f"%{self.tmp_var_counter}"
         self.tmp_var_counter += 1
         return name
 
@@ -365,14 +386,16 @@ class CFGBuilder:
             return search_scope(self.program.symbol_table)
         return None
 
-    def _new_block(self, meta: Optional[str] = None) -> BasicBlock:
+    def _new_block(
+        self, symbol_table: SymbolTable, meta: Optional[str] = None
+    ) -> BasicBlock:
         name = f"BB{self.block_counter}"
         self.block_counter += 1
-        bb = BasicBlock(name, meta)
+        bb = BasicBlock(name, symbol_table, meta)
         return bb
 
     def _switch_to_block(self, bb: BasicBlock):
-        self.current_block = bb
+        self.cur_block = bb
 
     def build(self, program: Program) -> list[CFG]:
         self.program = program
@@ -388,17 +411,18 @@ class CFGBuilder:
         self.continue_targets = []
         self.current_function = func
 
-        entry = self._new_block("entry")
-        exit_block = self._new_block("exit")
+        assert func.body.symbol_table is not None
+        entry = self._new_block(func.body.symbol_table, "entry")
+        exit_block = self._new_block(func.body.symbol_table, "exit")
 
         cfg = CFG(func.name, entry=entry, exit=exit_block, args=func.args)
         self.current_cfg = cfg
-        self.current_block = entry
+        self.cur_block = entry
 
         self._build_block(func.body)
 
-        if not self.current_block.succ:
-            self.current_block.add_child(exit_block)
+        if not self.cur_block.succ:
+            self.cur_block.add_child(exit_block)
 
         return cfg
 
@@ -430,65 +454,68 @@ class CFGBuilder:
                 self._build_block(stmt)
 
     def _build_assignment(self, stmt: Assignment):
-        assert self.current_block is not None, "Current block must be set"
+        assert self.cur_block is not None, "Current block must be set"
 
-        lhs_var = SSAVariable(stmt.name)
-
-        # Handle array initialization specially
+        type_info = unwrap(self.cur_block.symbol_table.lookup_variable(stmt.name))
         if isinstance(stmt.value, ArrayInit):
-            # Parse array type to get dimensions
-            var_type = Type.from_string(stmt.type)
-            if var_type.is_array():
-                self.current_block.append(InstArrayInit(lhs_var, var_type.dimensions))
-            else:
-                raise ValueError(f"ArrayInit used with non-array type: {stmt.type}")
+            lhs_var = SSAVariable(stmt.name, True)
+            self.cur_block.append(InstArrayInit(lhs_var, type_info.dimensions))
             return
 
-        subexpr_ssa_val = self._build_subexpression(stmt.value, lhs_var)
-        if subexpr_ssa_val != lhs_var:
-            self.current_block.append(
-                InstAssign(SSAVariable(stmt.name), subexpr_ssa_val)
-            )
+        subexpr_ssa_val = self._build_subexpression(stmt.value, stmt.name)
+        if not isinstance(subexpr_ssa_val, SSAVariable):
+            lhs = SSAVariable(stmt.name, type_info.is_array())
+            self.cur_block.append(InstAssign(lhs, subexpr_ssa_val))
 
-    def _build_subexpression(self, expr: Expression, name: SSAVariable) -> SSAValue:
-        assert self.current_block is not None, "Current block must be set"
+    def _build_subexpression(self, expr: Expression, name: str) -> SSAValue:
+        assert self.cur_block is not None, "Current block must be set"
+
+        def is_pointer(it: Iterable[SSAValue]) -> bool:
+            for item in it:
+                if not isinstance(item, SSAVariable):
+                    continue
+                if item.is_pointer:
+                    return True
+            return False
 
         match expr:
             case BinaryOp(op, left, right):
                 left_val = self._build_subexpression(left, self._get_tmp_var())
                 right_val = self._build_subexpression(right, self._get_tmp_var())
-                self.current_block.append(
-                    InstAssign(name, OpBinary(op, left_val, right_val))
+
+                lhs = SSAVariable(name, is_pointer([left_val, right_val]))
+                self.cur_block.append(
+                    InstAssign(lhs, OpBinary(op, left_val, right_val))
                 )
-                return name
+                return lhs
             case UnaryOp(op, operand):
                 subexpr_val = self._build_subexpression(operand, self._get_tmp_var())
-                self.current_block.append(InstAssign(name, OpUnary(op, subexpr_val)))
-                return name
+                lhs = SSAVariable(name, is_pointer([subexpr_val]))
+                self.cur_block.append(InstAssign(lhs, OpUnary(op, subexpr_val)))
+                return lhs
             case Identifier(ident_name):
-                return SSAVariable(ident_name)
+                type_info = self.cur_block.symbol_table.lookup_variable(ident_name)
+                assert type_info is not None
+                return SSAVariable(ident_name, type_info.is_array())
             case IntegerLiteral(value):
                 return SSAConstant(value)
             case CallExpression(func_name, args):
                 args = [
                     self._build_subexpression(arg, self._get_tmp_var()) for arg in args
                 ]
-                self.current_block.append(InstAssign(name, OpCall(func_name, args)))
-                return name
+                lhs = SSAVariable(name, is_pointer(args))
+                self.cur_block.append(InstAssign(lhs, OpCall(func_name, args)))
+                return lhs
             case ArrayAccess():
                 return self._build_array_access(expr, name)
             case ArrayInit():
-                # ArrayInit just returns the variable name (array is allocated)
-                # The name should be the array variable being assigned to
-                return name
+                return SSAVariable(name, True)
             case _:
                 raise ValueError(f"Unknown expression type: {type(expr).__name__}")
 
-    def _build_array_access(
-        self, expr: ArrayAccess, result_var: SSAVariable
-    ) -> SSAValue:
+    def _build_array_access(self, expr: ArrayAccess, name: str) -> SSAValue:
         """Build array access with pointer arithmetic and dereference."""
-        assert self.current_block is not None, "Current block must be set"
+        assert self.cur_block is not None, "Current block must be set"
 
         # Get the base variable
         base_val = self._build_subexpression(expr.base, self._get_tmp_var())
@@ -524,47 +551,49 @@ class CFGBuilder:
 
             # Multiply by stride
             stride_const = SSAConstant(strides[i])
-            stride_tmp = self._get_tmp_var()
-            self.current_block.append(
+            stride_tmp = SSAVariable(self._get_tmp_var(), False)
+
+            self.cur_block.append(
                 InstAssign(stride_tmp, OpBinary("*", index_val, stride_const))
             )
 
             # Add to current address
-            addr_tmp = self._get_tmp_var()
-            self.current_block.append(
+            addr_tmp = SSAVariable(self._get_tmp_var(), True)
+            self.cur_block.append(
                 InstAssign(addr_tmp, OpBinary("+", current_addr, stride_tmp))
             )
             current_addr = addr_tmp
 
         # Dereference the final address
         assert isinstance(current_addr, SSAVariable)
-        self.current_block.append(InstAssign(result_var, OpLoad(current_addr)))
-        return result_var
+
+        lhs = SSAVariable(name, True)
+        self.cur_block.append(InstAssign(lhs, OpLoad(current_addr)))
+        return lhs
 
     def _build_reassignment(self, stmt: Reassignment):
-        assert self.current_block is not None, "Current block must be set"
+        assert self.cur_block is not None, "Current block must be set"
 
-        # Handle array element assignment
         if isinstance(stmt.lvalue, LValueArrayAccess):
             self._build_array_element_assignment(stmt.lvalue, stmt.value)
             return
 
-        # Handle simple variable reassignment
         assert isinstance(stmt.lvalue, LValueIdentifier), (
             "Expected LValueIdentifier for simple reassignment"
         )
-        lhs_var = SSAVariable(stmt.lvalue.name)
-        subexpr_ssa_val = self._build_subexpression(stmt.value, lhs_var)
-        if subexpr_ssa_val != lhs_var:
-            self.current_block.append(
-                InstAssign(SSAVariable(stmt.lvalue.name), subexpr_ssa_val)
-            )
+        subexpr_ssa_val = self._build_subexpression(stmt.value, stmt.lvalue.name)
+        if not isinstance(subexpr_ssa_val, SSAVariable):
+            type_info = self.cur_block.symbol_table.lookup_variable(stmt.lvalue.name)
+            assert type_info is not None
+
+            lhs = SSAVariable(stmt.lvalue.name, type_info.is_array())
+            self.cur_block.append(InstAssign(lhs, subexpr_ssa_val))
 
     def _build_array_element_assignment(
         self, lvalue: LValueArrayAccess, value: Expression
     ):
         """Build array element assignment: arr[i][j] = value."""
-        assert self.current_block is not None, "Current block must be set"
+        assert self.cur_block is not None, "Current block must be set"
 
         # Look up the array type
         array_type = self._lookup_variable_type(lvalue.base)
@@ -584,7 +613,7 @@ class CFGBuilder:
             strides.append(stride)
 
         # Get the base array variable
-        base_val = SSAVariable(lvalue.base)
+        base_val = SSAVariable(lvalue.base, True)
 
         # Build pointer arithmetic: base + stride_0*idx_0 + stride_1*idx_1 + ...
         current_addr = base_val
@@ -596,14 +625,14 @@ class CFGBuilder:
 
             # Multiply by stride
             stride_const = SSAConstant(strides[i])
-            stride_tmp = self._get_tmp_var()
-            self.current_block.append(
+            stride_tmp = SSAVariable(self._get_tmp_var(), False)
+            self.cur_block.append(
                 InstAssign(stride_tmp, OpBinary("*", index_val, stride_const))
             )
 
             # Add to current address
-            addr_tmp = self._get_tmp_var()
-            self.current_block.append(
+            addr_tmp = SSAVariable(self._get_tmp_var(), True)
+            self.cur_block.append(
                 InstAssign(addr_tmp, OpBinary("+", current_addr, stride_tmp))
             )
             current_addr = addr_tmp
@@ -614,115 +643,116 @@ class CFGBuilder:
 
         # Store the value at the computed address
         # Note: current_addr is already an SSAValue (could be SSAVariable or SSAConstant)
-        self.current_block.append(InstStore(current_addr, value_val))
+        self.cur_block.append(InstStore(current_addr, value_val))
 
     def _build_function_call(self, stmt: FunctionCall):
-        assert self.current_block is not None, "Current block must be set"
-        tmp = self._get_tmp_var()
+        assert self.cur_block is not None, "Current block must be set"
+        tmp = SSAVariable(self._get_tmp_var(), False)
         args = [
             self._build_subexpression(arg, self._get_tmp_var()) for arg in stmt.args
         ]
-        self.current_block.append(InstAssign(tmp, OpCall(stmt.name, args)))
+        self.cur_block.append(InstAssign(tmp, OpCall(stmt.name, args)))
 
     def _build_condition(self, stmt: Condition):
-        assert self.current_block is not None, "Current block must be set"
+        assert self.cur_block is not None, "Current block must be set"
 
-        then_block = self._new_block("then")
-        merge_block = self._new_block("merge")
+        then_block = self._new_block(unwrap(stmt.then_block.symbol_table), "then")
+        merge_block = self._new_block(self.cur_block.symbol_table, "merge")
 
         cond_var = self._build_subexpression(stmt.condition, self._get_tmp_var())
         if stmt.else_block is None:
-            self.current_block.append(
+            self.cur_block.append(
                 InstCmp(cond_var, SSAConstant(1), then_block, merge_block)
             )
-            self.current_block.add_child(merge_block)
+            self.cur_block.add_child(merge_block)
         else:
-            else_block = self._new_block("else")
-            self.current_block.append(
+            else_block = self._new_block(unwrap(stmt.else_block.symbol_table), "else")
+            self.cur_block.append(
                 InstCmp(cond_var, SSAConstant(1), then_block, else_block)
             )
-            self.current_block.add_child(else_block)
+            self.cur_block.add_child(else_block)
 
-            old_block = self.current_block
+            old_block = self.cur_block
             self._switch_to_block(else_block)
             self._build_block(stmt.else_block)
 
-            if len(self.current_block.instructions) == 0 or not isinstance(
-                self.current_block.instructions[-1], (InstUncondJump, InstCmp)
+            if len(self.cur_block.instructions) == 0 or not isinstance(
+                self.cur_block.instructions[-1], (InstUncondJump, InstCmp)
             ):
-                self.current_block.add_child(merge_block)
-                self.current_block.append(InstUncondJump(merge_block))
+                self.cur_block.add_child(merge_block)
+                self.cur_block.append(InstUncondJump(merge_block))
                 self._switch_to_block(old_block)
 
-        self.current_block.add_child(then_block)
+        self.cur_block.add_child(then_block)
         self._switch_to_block(then_block)
         self._build_block(stmt.then_block)
 
-        if len(self.current_block.instructions) == 0 or not isinstance(
-            self.current_block.instructions[-1], (InstUncondJump, InstCmp)
+        if len(self.cur_block.instructions) == 0 or not isinstance(
+            self.cur_block.instructions[-1], (InstUncondJump, InstCmp)
         ):
-            self.current_block.add_child(merge_block)
-            self.current_block.append(InstUncondJump(merge_block))
+            self.cur_block.add_child(merge_block)
+            self.cur_block.append(InstUncondJump(merge_block))
 
         self._switch_to_block(merge_block)
 
     def _build_for_loop(self, stmt: ForLoop):
-        assert self.current_block is not None, "Current block must be set"
+        assert self.cur_block is not None, "Current block must be set"
 
-        initial_cond_block = self._new_block("condition check")
-        preheader_block = self._new_block("loop preheader")
-        header_block = self._new_block("loop header")
-        update_block = self._new_block("loop update")
-        tail_block = self._new_block("loop tail")
-        exit_block = self._new_block("loop exit")
+        body_st = unwrap(stmt.body.symbol_table)
+        initial_cond_block = self._new_block(body_st, "condition check")
+        preheader_block = self._new_block(body_st, "loop preheader")
+        header_block = self._new_block(body_st, "loop header")
+        update_block = self._new_block(body_st, "loop update")
+        tail_block = self._new_block(body_st, "loop tail")
+        exit_block = self._new_block(self.cur_block.symbol_table, "loop exit")
 
-        self.current_block.append(InstUncondJump(initial_cond_block))
-        self.current_block.add_child(initial_cond_block)
+        self.cur_block.append(InstUncondJump(initial_cond_block))
+        self.cur_block.add_child(initial_cond_block)
         self._switch_to_block(initial_cond_block)
 
         self._build_assignment(stmt.init)
         cond_var = self._build_subexpression(stmt.condition, self._get_tmp_var())
-        self.current_block.append(
+        self.cur_block.append(
             InstCmp(cond_var, SSAConstant(1), preheader_block, exit_block)
         )
-        self.current_block.add_child(preheader_block)
-        self.current_block.add_child(exit_block)
+        self.cur_block.add_child(preheader_block)
+        self.cur_block.add_child(exit_block)
 
         self._switch_to_block(preheader_block)
-        self.current_block.append(InstUncondJump(header_block))
-        self.current_block.add_child(header_block)
+        self.cur_block.append(InstUncondJump(header_block))
+        self.cur_block.add_child(header_block)
 
         self.break_targets.append(tail_block)
         self.continue_targets.append(update_block)
         self._switch_to_block(header_block)
         self._build_block(stmt.body)
 
-        if len(self.current_block.instructions) == 0 or not isinstance(
-            self.current_block.instructions[-1], (InstUncondJump, InstCmp, InstReturn)
+        if len(self.cur_block.instructions) == 0 or not isinstance(
+            self.cur_block.instructions[-1], (InstUncondJump, InstCmp, InstReturn)
         ):
-            self.current_block.add_child(update_block)
-            self.current_block.append(InstUncondJump(update_block))
+            self.cur_block.add_child(update_block)
+            self.cur_block.append(InstUncondJump(update_block))
 
         self._switch_to_block(update_block)
         self._build_reassignment(stmt.update)
         cond_var2 = self._build_subexpression(stmt.condition, self._get_tmp_var())
-        self.current_block.append(
+        self.cur_block.append(
             InstCmp(cond_var2, SSAConstant(1), header_block, tail_block)
         )
-        self.current_block.add_child(header_block)
-        self.current_block.add_child(tail_block)
+        self.cur_block.add_child(header_block)
+        self.cur_block.add_child(tail_block)
 
         self.break_targets.pop()
         self.continue_targets.pop()
 
         self._switch_to_block(tail_block)
-        self.current_block.append(InstUncondJump(exit_block))
-        self.current_block.add_child(exit_block)
+        self.cur_block.append(InstUncondJump(exit_block))
+        self.cur_block.add_child(exit_block)
 
         self._switch_to_block(exit_block)
 
     def _build_unconditional_loop(self, stmt: UnconditionalLoop):
-        assert self.current_block is not None, "Current block must be set"
+        assert self.cur_block is not None, "Current block must be set"
         raise NotImplementedError("not implemented")
 
         preheader_block = self._new_block("uncond loop preheader")
@@ -735,60 +765,62 @@ class CFGBuilder:
         self.break_targets.append(exit_block)
         self.continue_targets.append(tail_block)
 
-        self.current_block.add_child(preheader_block)
-        self.current_block.append(InstUncondJump(preheader_block))
+        self.cur_block.add_child(preheader_block)
+        self.cur_block.append(InstUncondJump(preheader_block))
 
         self._switch_to_block(preheader_block)
-        self.current_block.add_child(header_block)
-        self.current_block.append(InstUncondJump(header_block))
+        self.cur_block.add_child(header_block)
+        self.cur_block.append(InstUncondJump(header_block))
 
         self._switch_to_block(header_block)
-        self.current_block.add_child(body_block)
-        self.current_block.append(InstUncondJump(body_block))
+        self.cur_block.add_child(body_block)
+        self.cur_block.append(InstUncondJump(body_block))
 
         self._switch_to_block(body_block)
         self._build_block(stmt.body)
 
-        if len(self.current_block.instructions) == 0 or not isinstance(
-            self.current_block.instructions[-1], (InstUncondJump, InstCmp, InstReturn)
+        if len(self.cur_block.instructions) == 0 or not isinstance(
+            self.cur_block.instructions[-1], (InstUncondJump, InstCmp, InstReturn)
         ):
-            self.current_block.add_child(tail_block)
-            self.current_block.append(InstUncondJump(tail_block))
+            self.cur_block.add_child(tail_block)
+            self.cur_block.append(InstUncondJump(tail_block))
 
         self._switch_to_block(tail_block)
-        self.current_block.add_child(header_block)
-        self.current_block.append(InstUncondJump(header_block))
+        self.cur_block.add_child(header_block)
+        self.cur_block.append(InstUncondJump(header_block))
 
         self.break_targets.pop()
         self.continue_targets.pop()
         self._switch_to_block(exit_block)
 
     def _build_return(self, stmt: Return):
-        assert self.current_block is not None, "Current block must be set"
+        assert self.cur_block is not None, "Current block must be set"
         assert self.current_cfg is not None, "Current CFG must be set"
 
         if stmt.value is not None:
             ret_ssa = self._build_subexpression(stmt.value, self._get_tmp_var())
-            self.current_block.append(InstReturn(ret_ssa))
+            self.cur_block.append(InstReturn(ret_ssa))
         else:
-            self.current_block.append(InstReturn(None))
+            self.cur_block.append(InstReturn(None))
 
-        self.current_block.add_child(self.current_cfg.exit)
-        self._switch_to_block(self._new_block("after return"))
+        self.cur_block.add_child(self.current_cfg.exit)
+        self._switch_to_block(
+            self._new_block(self.cur_block.symbol_table, "after return")
+        )
 
     def _build_break(self, stmt: Break):
-        assert self.current_block is not None, "Current block must be set"
+        assert self.cur_block is not None, "Current block must be set"
 
         assert self.break_targets
         if self.break_targets:
             target = self.break_targets[-1]
-            self.current_block.add_child(target)
-            self.current_block.append(InstUncondJump(target))
+            self.cur_block.add_child(target)
+            self.cur_block.append(InstUncondJump(target))
 
     def _build_continue(self, stmt: Continue):
-        assert self.current_block is not None, "Current block must be set"
+        assert self.cur_block is not None, "Current block must be set"
 
         if self.continue_targets:
             target = self.continue_targets[-1]
-            self.current_block.add_child(target)
-            self.current_block.append(InstUncondJump(target))
+            self.cur_block.add_child(target)
+            self.cur_block.append(InstUncondJump(target))

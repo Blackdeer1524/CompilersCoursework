@@ -431,6 +431,16 @@ func main() -> void {
 }"""
         self.assert_no_errors(source)
 
+    def test_loop_variable_scope(self):
+        """Test variable scope in block."""
+        source = """
+        func main() -> int {
+            for (let i int = 0; i < 10; i = i + 1) {
+            }
+            return i;
+        }"""
+        self.assert_has_error(source, "Variable 'i' is not declared")
+
 
 if __name__ == "__main__":
     unittest.main()

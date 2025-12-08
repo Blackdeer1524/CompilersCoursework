@@ -1,4 +1,5 @@
 from hashlib import sha256
+from typing import Any, Optional
 
 
 bb_colors = {}
@@ -22,3 +23,8 @@ def color_label(l: str) -> str:
         bb_colors[l] = f"#{r}{g}{b}"
 
     return f'<B><font color="{bb_colors[l]}">{l}</font></B>'
+
+
+def unwrap[T: Any](v: Optional[T]) -> T:
+    assert v is not None
+    return v

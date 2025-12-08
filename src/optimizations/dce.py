@@ -34,6 +34,8 @@ class DCE:
         self.live_insts: set[Instruction | InstPhi] = set()
         self.live_vars: set[tuple[str, int]] = set()
 
+        self.block_to_bfs_depth: dict[BasicBlock, int] = {}
+
     def run(self, cfg: CFG):
         self.cfg = cfg
         self._build_metadata(cfg)
@@ -41,7 +43,9 @@ class DCE:
         self._rewrite(cfg)
 
     def _build_metadata(self, cfg: CFG):
-        for bb in cfg:
+        for depth, bb in cfg.bfs():
+            self.block_to_bfs_depth[bb] = depth
+
             # Phis
             for phi in bb.phi_nodes.values():
                 self.inst_block[phi] = bb
@@ -100,34 +104,32 @@ class DCE:
             if isinstance(v, SSAVariable) and v.version is not None:
                 yield (v.name, v.version)
 
+    def _mark_pointer_network(self, name: str, ver: int):
+        self.u
+
     # ---------- Liveness ----------
     def _seed_roots(self, cfg: CFG, var_work: deque[tuple[str, int]]):
+        def mark_value_live(val: SSAValue):
+            if not isinstance(val, SSAVariable):
+                return
+            assert val.version is not None
+            key = (val.name, val.version)
+            if key not in self.live_vars:
+                self.live_vars.add(key)
+                var_work.append(key)
+
         for inst in (inst for bb in cfg for inst in bb.instructions):
             match inst:
-                case InstStore(addr, value):
-                    self.live_insts.add(inst)
-                    if isinstance(value, SSAVariable) and value.version is not None:
-                        key = (value.name, value.version)
-                        if key not in self.live_vars:
-                            self.live_vars.add(key)
-                            var_work.append(key)
                 case InstAssign(lhs, rhs):
                     if isinstance(rhs, OpCall):
                         # Treat calls as side-effectful roots
                         self.live_insts.add(inst)
                         for arg in rhs.args:
-                            if isinstance(arg, SSAVariable) and arg.version is not None:
-                                key = (arg.name, arg.version)
-                                if key not in self.live_vars:
-                                    self.live_vars.add(key)
-                                    var_work.append(key)
+                            mark_value_live(arg)
                 case InstReturn(value):
                     self.live_insts.add(inst)
-                    if isinstance(value, SSAVariable) and value.version is not None:
-                        key = (value.name, value.version)
-                        if key not in self.live_vars:
-                            self.live_vars.add(key)
-                            var_work.append(key)
+                    if value is not None:
+                        mark_value_live(value)
                 case InstCmp(left=left, right=right):
                     # Terminator: always live; seed operands
                     self.live_insts.add(inst)

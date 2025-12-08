@@ -21,6 +21,7 @@ from src.ssa.cfg import (
     SSAVariable,
 )
 from src.ssa.dominance import compute_dominance_frontier_graph, compute_dominator_tree
+from src.ssa.helpers import unwrap
 
 
 @dataclass
@@ -188,8 +189,7 @@ class SSABuilder:
         block_new_assign_count: dict[str, int] = defaultdict(lambda: 0)
 
         for phi_inst in bb.phi_nodes.values():
-            var = self._rename_inst(phi_inst, bb)
-            assert var is not None
+            var = unwrap(self._rename_inst(phi_inst, bb))
             block_new_assign_count[var] += 1
 
         for inst in bb.instructions:
@@ -202,7 +202,9 @@ class SSABuilder:
                 if self.versions.get(phi_var) is None:
                     continue
                 version = self.versions[phi_var][-1]
-                phi_inst.rhs[bb.label] = SSAVariable(phi_var, version)
+                phi_inst.rhs[bb.label] = SSAVariable(
+                    phi_var, phi_inst.lhs.is_pointer, version
+                )
 
         for child in self.idom_tree.reversed_idom[bb]:
             self._rename_helper(child)
@@ -213,7 +215,9 @@ class SSABuilder:
     def _insert_get_argument_instructions(self):
         entry = self.cfg.entry
         for i, arg in enumerate(self.cfg.args):
-            entry.instructions.append(InstGetArgument(SSAVariable(arg.name), i))
+            type_info = unwrap(self.cfg.entry.symbol_table.lookup_variable(arg.name))
+            lhs = SSAVariable(arg.name, type_info.is_array())
+            entry.instructions.append(InstGetArgument(lhs, i))
 
     def build(self, cfg: CFG):
         self.cfg = cfg

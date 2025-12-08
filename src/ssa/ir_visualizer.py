@@ -56,7 +56,7 @@ def ir_to_graphviz(ir: str, name: str = "IR") -> str:
     graph_lines = ["node [shape=box]"]
 
     for label, html_label in nodes:
-        html_label = re.sub(r"(BB\d+)", lambda x: color_label(x[0]), html_label)
+        html_label = re.sub(r"(BB\d+)", lambda x: color_label(x[0]), html_label) + '<br ALIGN="LEFT"/>'
         graph_lines.append(f'"{label}" [label=<{html_label}>]')
 
     for src, dst in edges:
