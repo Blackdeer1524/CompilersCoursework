@@ -7,6 +7,7 @@ from typing import Optional, Iterable
 from src.ssa.cfg import (
     CFG,
     BasicBlock,
+    InstArrayInit,
     InstAssign,
     Instruction,
     OpLoad,
@@ -68,6 +69,9 @@ class LICM:
                         ):
                             use_key = (operand.name, operand.version)
                             self.uses[use_key].add(def_key)
+                elif isinstance(inst, InstArrayInit) and inst.lhs.version is not None:
+                    def_key = (inst.lhs.name, inst.lhs.version)
+                    self.def_to_block[def_key] = bb
 
     def _find_loops(self, cfg: CFG) -> list[LoopInfo]:
         assert self.dom_tree is not None
@@ -170,8 +174,8 @@ class LICM:
             return False
 
         rhs = inst.rhs
-        if isinstance(rhs, OpCall):
-            return False  # potential side effects -> no hoisting
+        if isinstance(rhs, OpCall) or isinstance(rhs, OpLoad):
+            return False
 
         if not self._dominates(inst_block, exit_block):
             return False
