@@ -1,6 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Iterable, Optional
 from src.ssa.cfg import (
     CFG,
     BasicBlock,
@@ -106,7 +106,7 @@ class SSABuilder:
         defs_by_var: dict[str, DefInfo] = defaultdict(DefInfo)
         for bb in self.idom_tree.traverse():
             for inst in bb.instructions:
-                if isinstance(inst, (InstAssign, InstGetArgument)):
+                if isinstance(inst, (InstAssign, InstGetArgument, InstArrayInit)):
                     defs_by_var[inst.lhs.name].add(bb)
 
         for var, def_blocks in defs_by_var.items():
@@ -124,7 +124,7 @@ class SSABuilder:
                     y.insert_phi(var)
                     has_phi.add(y)
                     if not any(
-                        isinstance(i, (InstAssign, InstGetArgument))
+                        isinstance(i, (InstAssign, InstGetArgument, InstArrayInit))
                         and i.lhs.name == var
                         for i in y.instructions
                     ):
@@ -138,10 +138,10 @@ class SSABuilder:
                         self._rename_operation(rhs)
                     case SSAVariable():
                         self._rename_var(rhs)
-                self._new_version(lhs)
+                self._new_version(lhs, inst, bb)
                 return lhs.name
             case InstPhi(lhs, rhs):
-                self._new_version(lhs)
+                self._new_version(lhs, inst, bb)
                 return lhs.name
             case InstCmp(left, right):
                 self._rename_ssa_val(left)
@@ -151,12 +151,13 @@ class SSABuilder:
                     return
                 self._rename_ssa_val(val)
             case InstArrayInit(lhs):
-                self._new_version(lhs)
+                self._new_version(lhs, inst, bb)
+                return lhs.name
             case InstStore(addr, val):
                 self._rename_ssa_val(addr)
                 self._rename_ssa_val(val)
             case InstGetArgument(lhs, _):
-                self._new_version(lhs)
+                self._new_version(lhs, inst, bb)
                 return lhs.name
 
     def _rename_ssa_val(self, val: SSAValue):
@@ -177,13 +178,43 @@ class SSABuilder:
                 self._rename_ssa_val(op.val)
 
     def _rename_var(self, var: SSAVariable):
-        assert len(self.versions[var.name]) > 0
-        var.version = self.versions[var.name][-1]
+        assert len(self.versions[var.name]) > 0, var.name
 
-    def _new_version(self, var: SSAVariable):
+        var.version = self.versions[var.name][-1]
+        if (base_ptr := self.ptr_info.get(var.name)) is not None:
+            var.base_pointer = base_ptr
+
+    def _new_version(self, var: SSAVariable, inst: Instruction, bb: BasicBlock):
+        def iter_vars_from_rhs(rhs: Operation | SSAValue) -> Iterable[SSAVariable]:
+            def iter_vars_from_vals(vals: Iterable[SSAValue]) -> Iterable[SSAVariable]:
+                for v in vals:
+                    if isinstance(v, SSAVariable) and v.version is not None:
+                        yield v
+
+            if isinstance(rhs, Operation):
+                match rhs:
+                    case OpBinary(_, left, right):
+                        yield from iter_vars_from_vals([left, right])
+                    case OpUnary(_, val):
+                        yield from iter_vars_from_vals([val])
+            else:
+                yield from iter_vars_from_vals([rhs])
+
         self.version_counter[var.name] += 1
         var.version = self.version_counter[var.name]
         self.versions[var.name].append(var.version)
+
+        type_info = bb.symbol_table.lookup_variable(var.name)
+        if type_info is None:
+            assert isinstance(inst, InstAssign)
+            for v in iter_vars_from_rhs(inst.rhs):
+                if v.base_pointer is None:
+                    continue
+                var.base_pointer = v.base_pointer
+                break
+        elif type_info.is_array():
+            self.ptr_info[var.name] = (var.name, var.version)
+            var.base_pointer = (var.name, var.version)
 
     def _rename_helper(self, bb: BasicBlock):
         block_new_assign_count: dict[str, int] = defaultdict(lambda: 0)
@@ -203,7 +234,7 @@ class SSABuilder:
                     continue
                 version = self.versions[phi_var][-1]
                 phi_inst.rhs[bb.label] = SSAVariable(
-                    phi_var, phi_inst.lhs.is_pointer, version
+                    phi_var, phi_inst.lhs.base_pointer, version
                 )
 
         for child in self.idom_tree.reversed_idom[bb]:
@@ -215,8 +246,7 @@ class SSABuilder:
     def _insert_get_argument_instructions(self):
         entry = self.cfg.entry
         for i, arg in enumerate(self.cfg.args):
-            type_info = unwrap(self.cfg.entry.symbol_table.lookup_variable(arg.name))
-            lhs = SSAVariable(arg.name, type_info.is_array())
+            lhs = SSAVariable(arg.name)
             entry.instructions.append(InstGetArgument(lhs, i))
 
     def build(self, cfg: CFG):
@@ -224,6 +254,7 @@ class SSABuilder:
         self.idom_tree = compute_dominator_tree(cfg)
         self.DF = compute_dominance_frontier_graph(cfg, self.idom_tree)
 
+        self.ptr_info: dict[str, tuple[str, int]] = {}
         self.versions: dict[str, list[int]] = defaultdict(lambda: [])
         self.version_counter: dict[str, int] = defaultdict(lambda: 0)
 

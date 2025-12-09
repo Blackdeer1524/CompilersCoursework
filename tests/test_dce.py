@@ -494,3 +494,63 @@ class TestDCE(base.TestBase):
         expected_ir = textwrap.dedent("""""").strip()
 
         self.assert_ir(src, expected_ir)
+
+    def test_array_dce(self):
+        src = """
+        func main() -> void {
+            let a [4][4]int = {};  // dead code
+            if (1) {
+                a[0][0] = 1; // dead code
+                let a[5][5]int = {};
+                a[1][1] = 2;
+                foo_5_5(a);
+            }
+        }
+        
+        func foo_5_5(x [5][5]int) -> void {
+        }
+        """
+
+        expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                jmp BB2
+            ; succ: [BB2]
+
+            ; pred: [BB0]
+            BB2:
+                cmp(1, 1)
+                if CF == 1 then jmp BB3 else jmp BB4
+            ; succ: [BB4, BB3]
+
+            ; pred: [BB2]
+            BB3: ; [then]
+                jmp BB5
+            ; succ: [BB5]
+
+            ; pred: [BB3]
+            BB5:
+                (a_2&lt;~)a_v2 = array_init([5][5])
+                %10_v1 = 1 * 4
+                %11_v1 = 0 + %10_v1
+                %13_v1 = 1 * 1
+                %14_v1 = %11_v1 + %13_v1
+                (a_2&lt;~)%15_v1 = %14_v1 + (a_2&lt;~)a_v2
+                %17_v1 = foo_5_5((a_2&lt;~)a_v2)
+                jmp BB4
+            ; succ: [BB4]
+
+            ; pred: [BB2, BB5]
+            BB4: ; [merge]
+            ; succ: [BB1]
+
+            ; pred: [BB4]
+            BB1: ; [exit]
+            ; succ: []
+
+            ; pred: [BB2, BB5]
+            BB4: ; [merge]
+            ; succ: [BB1]
+        """).strip()
+
+        self.assert_ir(src, expected_ir)

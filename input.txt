@@ -1,5 +1,13 @@
 func main() -> void {
-    let a [64]int = {};
+    let a[1][2][3] int = {};
+    a[0][1][2] = 1;
+    {
+        let a [3][2]int = {};
+        baz(a);
+    }
+}
+
+func baz(x [3][2]int) -> void {
 }
 
 func matrix_mult(A [64][64]int, B [64][64]int, C [64][64]int) -> void {
