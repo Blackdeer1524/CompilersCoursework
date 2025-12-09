@@ -65,3 +65,4 @@ class TestSCCPAndDCE(base.TestBase):
         """).strip()
 
         self.assert_ir(src, expected_ir)
+

@@ -101,7 +101,7 @@ class DCE:
             if isinstance(v, SSAVariable) and v.version is not None:
                 yield (v.name, v.version)
 
-    def _mark_pointer_network(
+    def _mark_stores_as_live(
         self,
         bb: BasicBlock,
         ptr_seed: SSAVariable,
@@ -157,7 +157,6 @@ class DCE:
             if not dead_end:
                 q.extend((pred for pred in cur.preds if pred not in seen))
 
-    # ---------- Liveness ----------
     def _seed_roots(self, cfg: CFG, var_work: deque[tuple[str, int]]):
         def mark_value_live(bb: BasicBlock, inst_idx: int, val: SSAValue):
             if not isinstance(val, SSAVariable):
@@ -170,11 +169,17 @@ class DCE:
                 var_work.append(key)
 
                 if val.base_pointer is not None:
-                    self._mark_pointer_network(bb, val, inst_idx, var_work)
+                    self._mark_stores_as_live(bb, val, inst_idx, var_work)
 
         for bb in cfg:
             for i, inst in enumerate(bb.instructions):
                 match inst:
+                    case InstGetArgument(lhs):
+                        if lhs.base_pointer is not None:
+                            k = (lhs.name, unwrap(lhs.version))
+                            self.live_vars.add(k)
+                            self.live_insts.add(inst)
+                            self._mark_stores_as_live(cfg.exit, lhs, -1, var_work)
                     case InstAssign(lhs, rhs):
                         if isinstance(rhs, OpCall):
                             # Treat calls as side-effectful roots

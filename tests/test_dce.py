@@ -783,3 +783,16 @@ class TestDCE(base.TestBase):
         """).strip()
 
         self.assert_ir(src, expected_ir)
+
+    def test_dce_args(self):
+        src = """
+        func main(A [64][64]int, b [64]int, x [64]int) -> int {
+            A[0][0] = 1;
+            return 0;
+        }
+        """
+
+        expected_ir = textwrap.dedent("""
+        """).strip()
+
+        self.assert_ir(src, expected_ir)
