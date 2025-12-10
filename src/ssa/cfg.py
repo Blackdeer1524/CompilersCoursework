@@ -537,20 +537,12 @@ class CFGBuilder:
         """Build array access with pointer arithmetic and dereference."""
         assert self.cur_block is not None, "Current block must be set"
 
-        # Get the base variable
         base_val = self._build_subexpression(expr.base, self._get_tmp_var())
 
-        # Look up the array type
-        if isinstance(expr.base, Identifier):
-            array_type = self._lookup_variable_type(expr.base.name)
-            if not array_type or not array_type.is_array():
-                raise ValueError(f"Array access on non-array variable {expr.base.name}")
-        else:
-            # For nested array access, we'd need to compute the type recursively
-            # For now, assume it's an array access
-            raise ValueError("Nested array access not yet fully supported")
+        assert isinstance(expr.base, Identifier)
+        array_type = unwrap(self._lookup_variable_type(expr.base.name))
+        assert array_type.is_array()
 
-        # Compute strides
         dimensions = array_type.dimensions
         strides = []
         for i in range(len(dimensions)):
@@ -560,39 +552,35 @@ class CFGBuilder:
                 stride *= dimensions[j]
             strides.append(stride)
 
-        # Build pointer arithmetic: base + stride_0*idx_0 + stride_1*idx_1 + ...
-        # Start with base address
-        current_addr = SSAConstant(0)
+        current_addr: Optional[SSAVariable] = None
 
-        # For each index, compute stride * index and add to address
         for i, index_expr in enumerate(expr.indices):
-            # Evaluate index expression
             index_val = self._build_subexpression(index_expr, self._get_tmp_var())
 
-            # Multiply by stride
             stride_const = SSAConstant(strides[i])
             stride_tmp = SSAVariable(self._get_tmp_var())
+            stride_op = OpBinary("*", index_val, stride_const)
+            self.cur_block.append(InstAssign(stride_tmp, stride_op))
 
-            self.cur_block.append(
-                InstAssign(stride_tmp, OpBinary("*", index_val, stride_const))
-            )
+            if current_addr is None:
+                current_addr = stride_tmp
+            else:
+                addr_tmp = SSAVariable(self._get_tmp_var())
+                op = OpBinary("+", current_addr, stride_tmp)
+                self.cur_block.append(InstAssign(addr_tmp, op))
+                current_addr = addr_tmp
 
-            # Add to current address
+        if current_addr is None:
             addr_tmp = SSAVariable(self._get_tmp_var())
-            self.cur_block.append(
-                InstAssign(addr_tmp, OpBinary("+", current_addr, stride_tmp))
-            )
+            self.cur_block.append(InstAssign(addr_tmp, base_val))
+            current_addr = addr_tmp
+        else:
+            addr_tmp = SSAVariable(self._get_tmp_var())
+            op = OpBinary("+", base_val, current_addr)
+            self.cur_block.append(InstAssign(addr_tmp, op))
             current_addr = addr_tmp
 
-        addr_tmp = SSAVariable(self._get_tmp_var())
-        self.cur_block.append(
-            InstAssign(addr_tmp, OpBinary("+", base_val, current_addr))
-        )
-        current_addr = addr_tmp
-
-        # Dereference the final address
         assert isinstance(current_addr, SSAVariable)
-
         lhs = SSAVariable(name)
         self.cur_block.append(InstAssign(lhs, OpLoad(current_addr)))
         return lhs
@@ -618,14 +606,9 @@ class CFGBuilder:
         """Build array element assignment: arr[i][j] = value."""
         assert self.cur_block is not None, "Current block must be set"
 
-        # Look up the array type
-        array_type = self._lookup_variable_type(lvalue.base)
-        if not array_type or not array_type.is_array():
-            raise ValueError(
-                f"Array element assignment on non-array variable {lvalue.base}"
-            )
+        array_type = unwrap(self._lookup_variable_type(lvalue.base))
+        assert array_type.is_array()
 
-        # Compute strides
         dimensions = array_type.dimensions
         strides = []
         for i in range(len(dimensions)):
@@ -635,43 +618,37 @@ class CFGBuilder:
                 stride *= dimensions[j]
             strides.append(stride)
 
-        # Get the base array variable
         base_val = SSAVariable(lvalue.base)
+        current_addr: Optional[SSAVariable] = None
 
-        # Build pointer arithmetic: base + stride_0*idx_0 + stride_1*idx_1 + ...
-        current_addr = SSAConstant(0)
-
-        # For each index, compute stride * index and add to address
         for i, index_expr in enumerate(lvalue.indices):
-            # Evaluate index expression
             index_val = self._build_subexpression(index_expr, self._get_tmp_var())
 
-            # Multiply by stride
             stride_const = SSAConstant(strides[i])
             stride_tmp = SSAVariable(self._get_tmp_var())
-            self.cur_block.append(
-                InstAssign(stride_tmp, OpBinary("*", index_val, stride_const))
-            )
+            stride_op = OpBinary("*", index_val, stride_const)
+            self.cur_block.append(InstAssign(stride_tmp, stride_op))
 
-            # Add to current address
+            if current_addr is None:
+                current_addr = stride_tmp
+            else:
+                addr_tmp = SSAVariable(self._get_tmp_var())
+                op = OpBinary("+", current_addr, stride_tmp)
+                self.cur_block.append(InstAssign(addr_tmp, op))
+                current_addr = addr_tmp
+
+        if current_addr is None:
             addr_tmp = SSAVariable(self._get_tmp_var())
-            self.cur_block.append(
-                InstAssign(addr_tmp, OpBinary("+", current_addr, stride_tmp))
-            )
+            self.cur_block.append(InstAssign(addr_tmp, base_val))
+            current_addr = addr_tmp
+        else:
+            addr_tmp = SSAVariable(self._get_tmp_var())
+            op = OpBinary("+", base_val, current_addr)
+            self.cur_block.append(InstAssign(addr_tmp, op))
             current_addr = addr_tmp
 
-        addr_tmp = SSAVariable(self._get_tmp_var())
-        self.cur_block.append(
-            InstAssign(addr_tmp, OpBinary("+", base_val, current_addr))
-        )
-        current_addr = addr_tmp
-
-        # Evaluate the value to assign
         value_tmp = self._get_tmp_var()
         value_val = self._build_subexpression(value, value_tmp)
-
-        # Store the value at the computed address
-        # Note: current_addr is already an SSAValue (could be SSAVariable or SSAConstant)
         self.cur_block.append(InstStore(current_addr, value_val))
 
     def _build_function_call(self, stmt: FunctionCall):

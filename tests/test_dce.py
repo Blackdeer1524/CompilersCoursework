@@ -678,13 +678,12 @@ class TestDCE(base.TestBase):
             ; pred: [BB0]
             BB2: ; [then]
                 (<~)a_v2 = array_init([5][5])
-                %10_v1 = 1 * 4
-                %11_v1 = 0 + %10_v1
-                %13_v1 = 1 * 1
-                %14_v1 = %11_v1 + %13_v1
-                (a_v2<~)%15_v1 = (<~)a_v2 + %14_v1
-                Store((a_v2<~)%15_v1, 2)
-                %17_v1 = foo_5_5((<~)a_v2)
+                %9_v1 = 1 * 4
+                %11_v1 = 1 * 1
+                %12_v1 = %9_v1 + %11_v1
+                (a_v2<~)%13_v1 = (<~)a_v2 + %12_v1
+                Store((a_v2<~)%13_v1, 2)
+                %15_v1 = foo_5_5((<~)a_v2)
                 jmp BB3
             ; succ: [BB3]
 
@@ -747,23 +746,21 @@ class TestDCE(base.TestBase):
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
                 %4_v1 = i_v2 * 1
-                %5_v1 = 0 + %4_v1
-                (a_v1<~)%6_v1 = (<~)a_v1 + %5_v1
-                Store((a_v1<~)%6_v1, i_v2)
-                %8_v1 = foo_5((<~)a_v1)
-                %11_v1 = i_v2 * 1
-                %12_v1 = 0 + %11_v1
-                (a_v1<~)%13_v1 = (<~)a_v1 + %12_v1
-                %14_v1 = i_v2 * i_v2
-                Store((a_v1<~)%13_v1, %14_v1)
+                (a_v1<~)%5_v1 = (<~)a_v1 + %4_v1
+                Store((a_v1<~)%5_v1, i_v2)
+                %7_v1 = foo_5((<~)a_v1)
+                %10_v1 = i_v2 * 1
+                (a_v1<~)%11_v1 = (<~)a_v1 + %10_v1
+                %12_v1 = i_v2 * i_v2
+                Store((a_v1<~)%11_v1, %12_v1)
                 jmp BB5
             ; succ: [BB5]
 
             ; pred: [BB4]
             BB5: ; [loop update]
                 i_v3 = i_v2 + 1
-                %19_v1 = i_v3 < 10
-                cmp(%19_v1, 1)
+                %17_v1 = i_v3 < 10
+                cmp(%17_v1, 1)
                 if CF == 1 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
@@ -778,7 +775,7 @@ class TestDCE(base.TestBase):
     def test_dce_args(self):
         src = """
         func main(A [64][64]int, b [64]int, x [64]int) -> int {
-            A[0][0] = 1;
+            A[1][1] = 1;
             return 0;
         }
         """
@@ -789,12 +786,11 @@ class TestDCE(base.TestBase):
                 (<~)A_v1 = getarg(0)
                 (<~)b_v1 = getarg(1)
                 (<~)x_v1 = getarg(2)
-                %1_v1 = 0 * 64
-                %2_v1 = 0 + %1_v1
-                %4_v1 = 0 * 1
-                %5_v1 = %2_v1 + %4_v1
-                (A_v1<~)%6_v1 = (<~)A_v1 + %5_v1
-                Store((A_v1<~)%6_v1, 1)
+                %1_v1 = 1 * 64
+                %3_v1 = 1 * 1
+                %4_v1 = %1_v1 + %3_v1
+                (A_v1<~)%5_v1 = (<~)A_v1 + %4_v1
+                Store((A_v1<~)%5_v1, 1)
                 return(0)
             ; succ: [BB1]
 

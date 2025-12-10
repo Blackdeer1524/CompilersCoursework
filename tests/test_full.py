@@ -58,7 +58,6 @@ class TestEndToEnd(base.TestBase):
             ; pred: [BB8]
             BB9: ; [loop preheader]
                 %11_v1 = i_v2 * 64
-                %12_v1 = 0 + %11_v1
                 jmp BB10
             ; succ: [BB10]
 
@@ -67,15 +66,14 @@ class TestEndToEnd(base.TestBase):
                 sum_v3 = ϕ(BB9: 0, BB11: sum_v4)
                 j_v2 = ϕ(BB9: 0, BB11: j_v3)
 
-                %14_v1 = j_v2 * 1
-                %15_v1 = %12_v1 + %14_v1
-                (mat_v1<~)%16_v1 = (<~)mat_v1 + %15_v1
-                %8_v1 = Load((mat_v1<~)%16_v1)
-                %20_v1 = j_v2 * 1
-                %21_v1 = 0 + %20_v1
-                (vec_v1<~)%22_v1 = (<~)vec_v1 + %21_v1
-                %17_v1 = Load((vec_v1<~)%22_v1)
-                %7_v1 = %8_v1 * %17_v1
+                %13_v1 = j_v2 * 1
+                %14_v1 = %11_v1 + %13_v1
+                (mat_v1<~)%15_v1 = (<~)mat_v1 + %14_v1
+                %8_v1 = Load((mat_v1<~)%15_v1)
+                %19_v1 = j_v2 * 1
+                (vec_v1<~)%20_v1 = (<~)vec_v1 + %19_v1
+                %16_v1 = Load((vec_v1<~)%20_v1)
+                %7_v1 = %8_v1 * %16_v1
                 sum_v4 = sum_v3 + %7_v1
                 jmp BB11
             ; succ: [BB11]
@@ -83,8 +81,8 @@ class TestEndToEnd(base.TestBase):
             ; pred: [BB10]
             BB11: ; [loop update]
                 j_v3 = j_v2 + 1
-                %25_v1 = j_v3 < 64
-                cmp(%25_v1, 1)
+                %23_v1 = j_v3 < 64
+                cmp(%23_v1, 1)
                 if CF == 1 then jmp BB10 else jmp BB12
             ; succ: [BB10, BB12]
 
@@ -97,18 +95,17 @@ class TestEndToEnd(base.TestBase):
             BB13: ; [loop exit]
                 sum_v2 = ϕ(BB12: sum_v4)
 
-                %29_v1 = i_v2 * 1
-                %30_v1 = 0 + %29_v1
-                (result_v1<~)%31_v1 = (<~)result_v1 + %30_v1
-                Store((result_v1<~)%31_v1, sum_v2)
+                %27_v1 = i_v2 * 1
+                (result_v1<~)%28_v1 = (<~)result_v1 + %27_v1
+                Store((result_v1<~)%28_v1, sum_v2)
                 jmp BB5
             ; succ: [BB5]
 
             ; pred: [BB13]
             BB5: ; [loop update]
                 i_v3 = i_v2 + 1
-                %35_v1 = i_v3 < 64
-                cmp(%35_v1, 1)
+                %32_v1 = i_v3 < 64
+                cmp(%32_v1, 1)
                 if CF == 1 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
@@ -130,25 +127,26 @@ class TestEndToEnd(base.TestBase):
 
     def test_gauss(self):
         src = """
-        func gauss_solve(A [10][10]int, b [10]int, x [10]int) -> int {
-            for (let i int = 0; i < 10; i = i + 1) {
+        func gauss_solve(A [64][64]int, b [64]int, x [64]int) -> int {
+            for (let i int = 0; i < 64; i = i + 1) {
                 let pivot int = A[i][i];
                 if (pivot == 0) {
                     return -1;  // Singular
                 }
 
-                for (let j int = i + 1; j < 10; j = j + 1) {
+                let real_pivot int = A[i][i];
+                for (let j int = i + 1; j < 64; j = j + 1) {
                     let factor int = A[j][i];
-                    for (let k int = i; k < 10; k = k + 1) {
-                        A[j][k] = A[j][k] * pivot - A[i][k] * factor;
+                    for (let k int = i; k < 64; k = k + 1) {
+                        A[j][k] = A[j][k] * real_pivot - A[i][k] * factor;
                     }
-                    b[j] = b[j] * pivot - b[i] * factor;
+                    b[j] = b[j] * real_pivot - b[i] * factor;
                 }
             }
 
-            for (let i int = 10 - 1; i >= 0; i = i - 1) {
+            for (let i int = 64 - 1; i >= 0; i = i - 1) {
                 let sum int = 0;
-                for (let j int = i + 1; j < 10; j = j + 1) {
+                for (let j int = i + 1; j < 64; j = j + 1) {
                     sum = sum + A[i][j] * x[j];
                 }
                 if (A[i][i] == 0) {

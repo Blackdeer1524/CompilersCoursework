@@ -18,16 +18,35 @@ func _foo() -> int {
 func gauss_solve(A [64][64]int, b [64]int, x [64]int) -> int {
     for (let i int = 0; i < 64; i = i + 1) {
         let pivot int = A[i][i];
+        // Row swap if pivot == 0
         if (pivot == 0) {
-            return -1;  // Singular
+            let found int = 0;
+            for (let r int = i + 1; r < 64; r = r + 1) {
+                if (A[r][i] != 0) {
+                    for (let c int = 0; c < 64; c = c + 1) {
+                        let temp int = A[i][c];
+                        A[i][c] = A[r][c];
+                        A[r][c] = temp;
+                    }
+                    let tempb int = b[i];
+                    b[i] = b[r];
+                    b[r] = tempb;
+                    found = 1;
+                    break;
+                }
+            }
+            if (found == 0) {
+                return -1;  // Singular
+            }
         }
 
+        let real_pivot int = A[i][i];
         for (let j int = i + 1; j < 64; j = j + 1) {
             let factor int = A[j][i];
             for (let k int = i; k < 64; k = k + 1) {
-                A[j][k] = A[j][k] * pivot - A[i][k] * factor;
+                A[j][k] = A[j][k] * real_pivot - A[i][k] * factor;
             }
-            b[j] = b[j] * pivot - b[i] * factor;
+            b[j] = b[j] * real_pivot - b[i] * factor;
         }
     }
 

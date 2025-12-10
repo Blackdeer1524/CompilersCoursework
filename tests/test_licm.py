@@ -724,9 +724,8 @@ class TestLICM(base.TestBase):
 
             ; pred: [BB2]
             BB3: ; [loop preheader]
-                %10_v1 = 5 * 1
-                %11_v1 = 0 + %10_v1
-                (a_v1<~)%12_v1 = (<~)a_v1 + %11_v1
+                %9_v1 = 5 * 1
+                (a_v1<~)%10_v1 = (<~)a_v1 + %9_v1
                 jmp BB4
             ; succ: [BB4]
 
@@ -735,18 +734,17 @@ class TestLICM(base.TestBase):
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
                 %4_v1 = i_v2 * 1
-                %5_v1 = 0 + %4_v1
-                (a_v1<~)%6_v1 = (<~)a_v1 + %5_v1
-                Store((a_v1<~)%6_v1, i_v2)
-                x_v2 = Load((a_v1<~)%12_v1)
+                (a_v1<~)%5_v1 = (<~)a_v1 + %4_v1
+                Store((a_v1<~)%5_v1, i_v2)
+                x_v2 = Load((a_v1<~)%10_v1)
                 jmp BB5
             ; succ: [BB5]
 
             ; pred: [BB4]
             BB5: ; [loop update]
                 i_v3 = i_v2 + 1
-                %15_v1 = i_v3 < 10
-                cmp(%15_v1, 1)
+                %13_v1 = i_v3 < 10
+                cmp(%13_v1, 1)
                 if CF == 1 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 

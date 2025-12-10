@@ -31,6 +31,10 @@ class TestSCCPAndDCE(base.TestBase):
             ; pred: [BB0]
             BB2: ; [then]
                 return(0)
+            ; succ: [BB1]
+
+            ; pred: [BB2]
+            BB1: ; [exit]
             ; succ: []
         """).strip()
 
@@ -61,6 +65,10 @@ class TestSCCPAndDCE(base.TestBase):
             ; pred: [BB2]
             BB7: ; [loop exit]
                 return(0)
+            ; succ: [BB1]
+
+            ; pred: [BB7]
+            BB1: ; [exit]
             ; succ: []
         """).strip()
 
