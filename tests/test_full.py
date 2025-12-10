@@ -27,8 +27,8 @@ class TestEndToEnd(base.TestBase):
         expected_ir = textwrap.dedent("""
             ; pred: []
             BB0: ; [entry]
-                (<~)mat_v1    = getarg(0)
-                (<~)vec_v1    = getarg(1)
+                (<~)mat_v1 = getarg(0)
+                (<~)vec_v1 = getarg(1)
                 (<~)result_v1 = getarg(2)
                 jmp BB2
             ; succ: [BB2]
@@ -64,19 +64,19 @@ class TestEndToEnd(base.TestBase):
 
             ; pred: [BB9, BB11]
             BB10: ; [loop header]
-                sum_v2 = ϕ(BB9: 0, BB11: sum_v3)
+                sum_v3 = ϕ(BB9: 0, BB11: sum_v4)
                 j_v2 = ϕ(BB9: 0, BB11: j_v3)
 
                 %14_v1 = j_v2 * 1
                 %15_v1 = %12_v1 + %14_v1
-                (mat_v1<~)%16_v1 = %15_v1 + (<~)mat_v1
+                (mat_v1<~)%16_v1 = (<~)mat_v1 + %15_v1
                 %8_v1 = Load((mat_v1<~)%16_v1)
                 %20_v1 = j_v2 * 1
                 %21_v1 = 0 + %20_v1
-                (vec_v1<~)%22_v1 = %21_v1 + (<~)vec_v1
+                (vec_v1<~)%22_v1 = (<~)vec_v1 + %21_v1
                 %17_v1 = Load((vec_v1<~)%22_v1)
                 %7_v1 = %8_v1 * %17_v1
-                sum_v3 = sum_v2 + %7_v1
+                sum_v4 = sum_v3 + %7_v1
                 jmp BB11
             ; succ: [BB11]
 
@@ -95,12 +95,12 @@ class TestEndToEnd(base.TestBase):
 
             ; pred: [BB12]
             BB13: ; [loop exit]
-                sum_v4 = ϕ(BB12: sum_v3)
+                sum_v2 = ϕ(BB12: sum_v4)
 
                 %29_v1 = i_v2 * 1
                 %30_v1 = 0 + %29_v1
-                (result_v1<~)%31_v1 = %30_v1 + (<~)result_v1
-                Store((result_v1<~)%31_v1, sum_v4)
+                (result_v1<~)%31_v1 = (<~)result_v1 + %30_v1
+                Store((result_v1<~)%31_v1, sum_v2)
                 jmp BB5
             ; succ: [BB5]
 
@@ -130,25 +130,25 @@ class TestEndToEnd(base.TestBase):
 
     def test_gauss(self):
         src = """
-        func gauss_solve(A [64][64]int, b [64]int, x [64]int) -> int {
-            for (let i int = 0; i < 64; i = i + 1) {
+        func gauss_solve(A [10][10]int, b [10]int, x [10]int) -> int {
+            for (let i int = 0; i < 10; i = i + 1) {
                 let pivot int = A[i][i];
                 if (pivot == 0) {
                     return -1;  // Singular
                 }
 
-                for (let j int = i + 1; j < 64; j = j + 1) {
+                for (let j int = i + 1; j < 10; j = j + 1) {
                     let factor int = A[j][i];
-                    for (let k int = i; k < 64; k = k + 1) {
+                    for (let k int = i; k < 10; k = k + 1) {
                         A[j][k] = A[j][k] * pivot - A[i][k] * factor;
                     }
                     b[j] = b[j] * pivot - b[i] * factor;
                 }
             }
 
-            for (let i int = 64 - 1; i >= 0; i = i - 1) {
+            for (let i int = 10 - 1; i >= 0; i = i - 1) {
                 let sum int = 0;
-                for (let j int = i + 1; j < 64; j = j + 1) {
+                for (let j int = i + 1; j < 10; j = j + 1) {
                     sum = sum + A[i][j] * x[j];
                 }
                 if (A[i][i] == 0) {

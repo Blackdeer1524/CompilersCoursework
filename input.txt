@@ -1,13 +1,19 @@
-func mat_vec_mul(mat [64][64]int, vec [64]int, result [64]int) -> void {
-    for (let i int = 0; i < 64; i = i + 1) {
-        let sum int = 0;
-        for (let j int = 0; j < 64; j = j + 1) {
-            sum = sum + mat[i][j] * vec[j];
+func _main() -> int {
+    let v int = 0;
+    let N int = 0;
+    for (let i int = 0; i < 10; i = i + 1) {
+        v = 2;  // should be hoisted
+        if (N == 0) {
+            break;
         }
-        result[i] = sum;
+        v = 4;  // shouldn't be hoisted
     }
+    return v;
 }
 
+func _foo() -> int {
+    return -42;
+}        
 
 func gauss_solve(A [64][64]int, b [64]int, x [64]int) -> int {
     for (let i int = 0; i < 64; i = i + 1) {
@@ -36,6 +42,17 @@ func gauss_solve(A [64][64]int, b [64]int, x [64]int) -> int {
         x[i] = (b[i] - sum) / A[i][i];
     }
     return 0;
+}
+
+
+func mat_vec_mul(mat [64][64]int, vec [64]int, result [64]int) -> void {
+    for (let i int = 0; i < 64; i = i + 1) {
+        let sum int = 0;
+        for (let j int = 0; j < 64; j = j + 1) {
+            sum = sum + mat[i][j] * vec[j];
+        }
+        result[i] = sum;
+    }
 }
 
 

@@ -47,7 +47,7 @@ class TestDCE(base.TestBase):
             ; pred: [BB0]
             BB2: ; [condition check]
                 i_v1 = 0
-                %0_v1 = i_v1 &lt; 10
+                %0_v1 = i_v1 < 10
                 cmp(%0_v1, 1)
                 if CF == 1 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
@@ -76,7 +76,7 @@ class TestDCE(base.TestBase):
             ; pred: [BB4]
             BB5: ; [loop update]
                 i_v3 = i_v2 + 1
-                %7_v1 = i_v3 &lt; 10
+                %7_v1 = i_v3 < 10
                 cmp(%7_v1, 1)
                 if CF == 1 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
@@ -122,11 +122,6 @@ class TestDCE(base.TestBase):
             ; pred: [BB3]
             BB1: ; [exit]
             ; succ: []
-
-            ; pred: [BB0, BB2]
-            BB3: ; [merge]
-                return(1)
-            ; succ: [BB1]
         """).strip()
 
         self.assert_ir(src, expected_ir)
@@ -276,7 +271,7 @@ class TestDCE(base.TestBase):
             ; pred: [BB0]
             BB2: ; [condition check]
                 i_v1 = 0
-                %0_v1 = i_v1 &lt; 10
+                %0_v1 = i_v1 < 10
                 cmp(%0_v1, 1)
                 if CF == 1 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
@@ -305,7 +300,7 @@ class TestDCE(base.TestBase):
             ; pred: [BB4]
             BB8: ; [condition check]
                 j_v1 = 0
-                %3_v1 = j_v1 &lt; 10
+                %3_v1 = j_v1 < 10
                 cmp(%3_v1, 1)
                 if CF == 1 then jmp BB9 else jmp BB13
             ; succ: [BB9, BB13]
@@ -318,7 +313,7 @@ class TestDCE(base.TestBase):
             ; pred: [BB13]
             BB5: ; [loop update]
                 i_v3 = i_v2 + 1
-                %15_v1 = i_v3 &lt; 10
+                %15_v1 = i_v3 < 10
                 cmp(%15_v1, 1)
                 if CF == 1 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
@@ -343,7 +338,7 @@ class TestDCE(base.TestBase):
             ; pred: [BB10]
             BB11: ; [loop update]
                 j_v3 = j_v2 + 1
-                %10_v1 = j_v3 &lt; 10
+                %10_v1 = j_v3 < 10
                 cmp(%10_v1, 1)
                 if CF == 1 then jmp BB10 else jmp BB12
             ; succ: [BB10, BB12]
@@ -420,7 +415,7 @@ class TestDCE(base.TestBase):
             ; pred: [BB0]
             BB2: ; [condition check]
                 i_v1 = 0
-                %0_v1 = i_v1 &lt; 10
+                %0_v1 = i_v1 < 10
                 cmp(%0_v1, 1)
                 if CF == 1 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
@@ -449,7 +444,7 @@ class TestDCE(base.TestBase):
             ; pred: [BB4]
             BB5: ; [loop update]
                 i_v3 = i_v2 + 1
-                %7_v1 = i_v3 &lt; 10
+                %7_v1 = i_v3 < 10
                 cmp(%7_v1, 1)
                 if CF == 1 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
@@ -615,7 +610,7 @@ class TestDCE(base.TestBase):
             ; pred: [BB0]
             BB2: ; [condition check]
                 i_v1 = 0
-                %0_v1 = i_v1 &lt; 10
+                %0_v1 = i_v1 < 10
                 cmp(%0_v1, 1)
                 if CF == 1 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
@@ -644,7 +639,7 @@ class TestDCE(base.TestBase):
             ; pred: [BB4]
             BB5: ; [loop update]
                 i_v3 = i_v2 + 1
-                %7_v1 = i_v3 &lt; 10
+                %7_v1 = i_v3 < 10
                 cmp(%7_v1, 1)
                 if CF == 1 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
@@ -682,14 +677,14 @@ class TestDCE(base.TestBase):
 
             ; pred: [BB0]
             BB2: ; [then]
-                (a_2&lt;~)a_v2 = array_init([5][5])
+                (<~)a_v2 = array_init([5][5])
                 %10_v1 = 1 * 4
                 %11_v1 = 0 + %10_v1
                 %13_v1 = 1 * 1
                 %14_v1 = %11_v1 + %13_v1
-                (a_2&lt;~)%15_v1 = %14_v1 + (a_2&lt;~)a_v2
-                Store((a_2&lt;~)%15_v1, 2)
-                %17_v1 = foo_5_5((a_2&lt;~)a_v2)
+                (a_v2<~)%15_v1 = (<~)a_v2 + %14_v1
+                Store((a_v2<~)%15_v1, 2)
+                %17_v1 = foo_5_5((<~)a_v2)
                 jmp BB3
             ; succ: [BB3]
 
@@ -700,10 +695,6 @@ class TestDCE(base.TestBase):
             ; pred: [BB3]
             BB1: ; [exit]
             ; succ: []
-
-            ; pred: [BB0, BB2]
-            BB3: ; [merge]
-            ; succ: [BB1]
         """).strip()
 
         self.assert_ir(src, expected_ir)
@@ -726,14 +717,14 @@ class TestDCE(base.TestBase):
         expected_ir = textwrap.dedent("""
             ; pred: []
             BB0: ; [entry]
-                (a_1&lt;~)a_v1 = array_init([5])
+                (<~)a_v1 = array_init([5])
                 jmp BB2
             ; succ: [BB2]
 
             ; pred: [BB0]
             BB2: ; [condition check]
                 i_v1 = 0
-                %0_v1 = i_v1 &lt; 10
+                %0_v1 = i_v1 < 10
                 cmp(%0_v1, 1)
                 if CF == 1 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
@@ -757,21 +748,21 @@ class TestDCE(base.TestBase):
 
                 %4_v1 = i_v2 * 1
                 %5_v1 = 0 + %4_v1
-                (a_1&lt;~)%6_v2 = %5_v1 + (a_1&lt;~)a_v1
-                Store((a_1&lt;~)%6_v2, i_v2)
-                %8_v1 = foo_5((a_1&lt;~)a_v1)
+                (a_v1<~)%6_v1 = (<~)a_v1 + %5_v1
+                Store((a_v1<~)%6_v1, i_v2)
+                %8_v1 = foo_5((<~)a_v1)
                 %11_v1 = i_v2 * 1
                 %12_v1 = 0 + %11_v1
-                (a_1&lt;~)%13_v2 = %12_v1 + (a_1&lt;~)a_v1
+                (a_v1<~)%13_v1 = (<~)a_v1 + %12_v1
                 %14_v1 = i_v2 * i_v2
-                Store((a_1&lt;~)%13_v2, %14_v1)
+                Store((a_v1<~)%13_v1, %14_v1)
                 jmp BB5
             ; succ: [BB5]
 
             ; pred: [BB4]
             BB5: ; [loop update]
                 i_v3 = i_v2 + 1
-                %19_v1 = i_v3 &lt; 10
+                %19_v1 = i_v3 < 10
                 cmp(%19_v1, 1)
                 if CF == 1 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
@@ -793,6 +784,23 @@ class TestDCE(base.TestBase):
         """
 
         expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                (<~)A_v1 = getarg(0)
+                (<~)b_v1 = getarg(1)
+                (<~)x_v1 = getarg(2)
+                %1_v1 = 0 * 64
+                %2_v1 = 0 + %1_v1
+                %4_v1 = 0 * 1
+                %5_v1 = %2_v1 + %4_v1
+                (A_v1<~)%6_v1 = (<~)A_v1 + %5_v1
+                Store((A_v1<~)%6_v1, 1)
+                return(0)
+            ; succ: [BB1]
+
+            ; pred: [BB0]
+            BB1: ; [exit]
+            ; succ: []
         """).strip()
 
         self.assert_ir(src, expected_ir)

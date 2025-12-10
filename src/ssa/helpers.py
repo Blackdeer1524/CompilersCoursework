@@ -11,7 +11,7 @@ def color_label(l: str) -> str:
 
         r = h[-2:]
         g = h[0:2]
-        b = h[-6:-4]
+        b = h[-4:-2]
 
         if len(r) == 1:
             r = "0" + r

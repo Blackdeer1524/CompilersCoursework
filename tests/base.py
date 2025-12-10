@@ -77,6 +77,7 @@ class TestBase(unittest.TestCase):
 
         message = textwrap.dedent(f"""
         digraph G {{
+            rankdir = LR;
             subgraph cluster_source_code {{
                 node [shape=box]
                 label="Source";

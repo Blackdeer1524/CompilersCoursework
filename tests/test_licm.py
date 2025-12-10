@@ -27,7 +27,7 @@ class TestLICM(base.TestBase):
             ; pred: [BB0]
             BB2: ; [condition check]
                 i_v1 = 0
-                %0_v1 = i_v1 &lt; 10
+                %0_v1 = i_v1 < 10
                 cmp(%0_v1, 1)
                 if CF == 1 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
@@ -59,15 +59,15 @@ class TestLICM(base.TestBase):
             ; pred: [BB4]
             BB5: ; [loop update]
                 i_v3 = i_v2 + 1
-                %5_v1 = i_v3 &lt; 10
+                %5_v1 = i_v3 < 10
                 cmp(%5_v1, 1)
-                if CF == 1 then jmp BB4 else jmp BB7
+                if CF == 1 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
             ; pred: [BB5]
             BB6: ; [loop tail]
                 jmp BB7
-            ; succ: [BB7]       
+            ; succ: [BB7]
         """).strip()
         self.assert_ir(src, expected_ir)
 
@@ -91,7 +91,7 @@ class TestLICM(base.TestBase):
             ; pred: [BB0]
             BB2: ; [condition check]
                 i_v1 = 0
-                %0_v1 = i_v1 &lt; 10
+                %0_v1 = i_v1 < 10
                 cmp(%0_v1, 1)
                 if CF == 1 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
@@ -108,7 +108,7 @@ class TestLICM(base.TestBase):
             ; pred: [BB2]
             BB3: ; [loop preheader]
                 j_v1 = 0
-                %3_v1 = j_v1 &lt; 10
+                %3_v1 = j_v1 < 10
                 jmp BB4
             ; succ: [BB4]
 
@@ -133,9 +133,9 @@ class TestLICM(base.TestBase):
             ; pred: [BB13]
             BB5: ; [loop update]
                 i_v3 = i_v2 + 1
-                %13_v1 = i_v3 &lt; 10
+                %13_v1 = i_v3 < 10
                 cmp(%13_v1, 1)
-                if CF == 1 then jmp BB4 else jmp BB7
+                if CF == 1 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
             ; pred: [BB5]
@@ -158,9 +158,9 @@ class TestLICM(base.TestBase):
             ; pred: [BB10]
             BB11: ; [loop update]
                 j_v3 = j_v2 + 1
-                %8_v1 = j_v3 &lt; 10
+                %8_v1 = j_v3 < 10
                 cmp(%8_v1, 1)
-                if CF == 1 then jmp BB10 else jmp BB13
+                if CF == 1 then jmp BB10 else jmp BB12
             ; succ: [BB10, BB12]
 
             ; pred: [BB11]
@@ -197,16 +197,16 @@ class TestLICM(base.TestBase):
             ; pred: [BB0]
             BB2: ; [condition check]
                 i_v1 = 0
-                %0_v1 = i_v1 &lt; N_v1
+                %0_v1 = i_v1 < N_v1
                 cmp(%0_v1, 1)
                 if CF == 1 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
 
             ; pred: [BB2, BB6]
             BB7: ; [loop exit]
-                x_v2 = ϕ(BB2: x_v1, BB6: x_v3)
+                x_v3 = ϕ(BB2: x_v1, BB6: x_v2)
 
-                return(x_v2)
+                return(x_v3)
             ; succ: [BB1]
 
             ; pred: [BB7]
@@ -215,7 +215,7 @@ class TestLICM(base.TestBase):
 
             ; pred: [BB2]
             BB3: ; [loop preheader]
-                x_v3 = 11
+                x_v2 = 11
                 jmp BB4
             ; succ: [BB4]
 
@@ -229,15 +229,15 @@ class TestLICM(base.TestBase):
             ; pred: [BB4]
             BB5: ; [loop update]
                 i_v3 = i_v2 + 1
-                %5_v1 = i_v3 &lt; N_v1
+                %5_v1 = i_v3 < N_v1
                 cmp(%5_v1, 1)
-                if CF == 1 then jmp BB4 else jmp BB7
+                if CF == 1 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
             ; pred: [BB5]
             BB6: ; [loop tail]
                 jmp BB7
-            ; succ: [BB7]       
+            ; succ: [BB7]
         """).strip()
         self.assert_ir(src, expected_ir)
 
@@ -260,6 +260,72 @@ class TestLICM(base.TestBase):
         """
 
         expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                v_v1 = 0
+                jmp BB2
+            ; succ: [BB2]
+
+            ; pred: [BB0]
+            BB2: ; [condition check]
+                i_v1 = 0
+                %0_v1 = i_v1 < 10
+                cmp(%0_v1, 1)
+                if CF == 1 then jmp BB3 else jmp BB7
+            ; succ: [BB3, BB7]
+
+            ; pred: [BB2, BB6]
+            BB7: ; [loop exit]
+                v_v5 = ϕ(BB2: v_v1, BB6: v_v4)
+
+                return(v_v5)
+            ; succ: [BB1]
+
+            ; pred: [BB7]
+            BB1: ; [exit]
+            ; succ: []
+
+            ; pred: [BB2]
+            BB3: ; [loop preheader]
+                jmp BB4
+            ; succ: [BB4]
+
+            ; pred: [BB3, BB5]
+            BB4: ; [loop header]
+                v_v2 = ϕ(BB3: v_v1, BB5: v_v4)
+                i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
+
+                N_v1 = foo()
+                %3_v1 = N_v1 == 0
+                cmp(%3_v1, 1)
+                if CF == 1 then jmp BB8 else jmp BB9
+            ; succ: [BB9, BB8]
+
+            ; pred: [BB4]
+            BB8: ; [then]
+                v_v3 = 2
+                jmp BB9
+            ; succ: [BB9]
+
+            ; pred: [BB4, BB8]
+            BB9: ; [merge]
+                v_v4 = ϕ(BB4: v_v2, BB8: v_v3)
+
+                jmp BB5
+            ; succ: [BB5]
+
+            ; pred: [BB9]
+            BB5: ; [loop update]
+                i_v3 = i_v2 + 1
+                %8_v1 = i_v3 < 10
+                cmp(%8_v1, 1)
+                if CF == 1 then jmp BB4 else jmp BB6
+            ; succ: [BB4, BB6]
+
+            ; pred: [BB5]
+            BB6: ; [loop tail]
+                jmp BB7
+            ; succ: [BB7]
         """).strip()
         self.assert_ir(src, expected_ir)
 
@@ -301,7 +367,7 @@ class TestLICM(base.TestBase):
 
             ; pred: [BB2, BB6]
             BB7: ; [loop exit]
-                v_v5 = ϕ(BB2: v_v1, BB6: v_v4)
+                v_v5 = ϕ(BB2: v_v1, BB6: v_v3)
 
                 return(v_v5)
             ; succ: [BB1]
@@ -332,14 +398,14 @@ class TestLICM(base.TestBase):
 
             ; pred: [BB8, BB5]
             BB6: ; [loop tail]
-                v_v4 = ϕ(BB8: v_v2, BB5: v_v3)
+                v_v3 = ϕ(BB8: v_v2, BB5: v_v4)
 
                 jmp BB7
             ; succ: [BB7]
 
             ; pred: [BB4]
             BB9: ; [merge]
-                v_v3 = 4
+                v_v4 = 4
                 jmp BB5
             ; succ: [BB5]
 
@@ -647,9 +713,9 @@ class TestLICM(base.TestBase):
 
             ; pred: [BB2, BB6]
             BB7: ; [loop exit]
-                x_v2 = ϕ(BB2: x_v1, BB6: x_v3)
+                x_v3 = ϕ(BB2: x_v1, BB6: x_v2)
 
-                return(x_v2)
+                return(x_v3)
             ; succ: [BB1]
 
             ; pred: [BB7]
@@ -660,7 +726,7 @@ class TestLICM(base.TestBase):
             BB3: ; [loop preheader]
                 %10_v1 = 5 * 1
                 %11_v1 = 0 + %10_v1
-                (a_v1<~)%12_v1 = %11_v1 + (<~)a_v1
+                (a_v1<~)%12_v1 = (<~)a_v1 + %11_v1
                 jmp BB4
             ; succ: [BB4]
 
@@ -670,9 +736,9 @@ class TestLICM(base.TestBase):
 
                 %4_v1 = i_v2 * 1
                 %5_v1 = 0 + %4_v1
-                (a_v1<~)%6_v1 = %5_v1 + (<~)a_v1
+                (a_v1<~)%6_v1 = (<~)a_v1 + %5_v1
                 Store((a_v1<~)%6_v1, i_v2)
-                x_v3 = Load((a_v1<~)%12_v1)
+                x_v2 = Load((a_v1<~)%12_v1)
                 jmp BB5
             ; succ: [BB5]
 
@@ -687,6 +753,6 @@ class TestLICM(base.TestBase):
             ; pred: [BB5]
             BB6: ; [loop tail]
                 jmp BB7
-            ; succ: [BB7]
+            ; succ: [BB7] 
         """).strip()
         self.assert_ir(src, expected_ir)

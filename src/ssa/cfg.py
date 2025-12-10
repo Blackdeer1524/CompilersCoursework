@@ -46,11 +46,14 @@ class SSAVariable(SSAValue):
     def __repr__(self):
         res = ""
         if self.base_pointer is not None:
-            if self.base_pointer[0] == self.name and self.base_pointer[1] == self.version:
+            if (
+                self.base_pointer[0] == self.name
+                and self.base_pointer[1] == self.version
+            ):
                 res += "(<~)"
             else:
                 res += f"({self.base_pointer[0]}_v{self.base_pointer[1]}<~)"
-                
+
         res += self.name
         if self.version is not None:
             res += f"_v{self.version}"
@@ -301,6 +304,8 @@ class CFG:
         q = deque([(0, self.entry)])
         while len(q) > 0:
             (depth, bb) = q.popleft()
+            if bb in visited_blocks:
+                continue
             visited_blocks.add(bb)
             yield (depth, bb)
             q.extend(((depth + 1, s) for s in bb.succ if s not in visited_blocks))
@@ -310,6 +315,8 @@ class CFG:
         q = [self.entry]
         while len(q) > 0:
             n = q.pop()
+            if n in visited_blocks:
+                continue
             visited_blocks.add(n)
             yield n
             q.extend((s for s in n.succ if s not in visited_blocks))
@@ -320,6 +327,7 @@ class CFG:
         dominance_frontier: dict["BasicBlock", set["BasicBlock"]],
     ):
         res = f"digraph {self.name} {{\n"
+        res += "rankdir = LR;\n"
         res += "node [shape=box]\n"
 
         for bb in self:
@@ -330,7 +338,7 @@ class CFG:
             for succ in bb.succ:
                 res += (
                     f'"{bb.label}" -> "{succ.label}" '
-                    + '[headport="n", tailport="s", penwidth=3, '
+                    + '[headport="w", tailport="e", penwidth=3, '
                     + f'color="{bb_colors[succ.label]};0.5:{bb_colors[bb.label]}"]\n'
                 )
 
@@ -482,7 +490,10 @@ class CFGBuilder:
             return
 
         subexpr_ssa_val = self._build_subexpression(stmt.value, stmt.name)
-        if not isinstance(subexpr_ssa_val, SSAVariable) or subexpr_ssa_val.name != stmt.name:
+        if (
+            not isinstance(subexpr_ssa_val, SSAVariable)
+            or subexpr_ssa_val.name != stmt.name
+        ):
             lhs = SSAVariable(stmt.name)
             self.cur_block.append(InstAssign(lhs, subexpr_ssa_val))
 
@@ -575,7 +586,7 @@ class CFGBuilder:
 
         addr_tmp = SSAVariable(self._get_tmp_var())
         self.cur_block.append(
-            InstAssign(addr_tmp, OpBinary("+", current_addr, base_val))
+            InstAssign(addr_tmp, OpBinary("+", base_val, current_addr))
         )
         current_addr = addr_tmp
 
@@ -651,7 +662,7 @@ class CFGBuilder:
 
         addr_tmp = SSAVariable(self._get_tmp_var())
         self.cur_block.append(
-            InstAssign(addr_tmp, OpBinary("+", current_addr, base_val))
+            InstAssign(addr_tmp, OpBinary("+", base_val, current_addr))
         )
         current_addr = addr_tmp
 
@@ -721,6 +732,8 @@ class CFGBuilder:
         preheader_block = self._new_block(body_st, "loop preheader")
         header_block = self._new_block(body_st, "loop header")
         update_block = self._new_block(body_st, "loop update")
+
+        # required for an easier loop detection in LICM : all tail's predecessors are guaranteed to be loop blocks
         tail_block = self._new_block(body_st, "loop tail")
         exit_block = self._new_block(self.cur_block.symbol_table, "loop exit")
 
@@ -771,44 +784,42 @@ class CFGBuilder:
 
     def _build_unconditional_loop(self, stmt: UnconditionalLoop):
         assert self.cur_block is not None, "Current block must be set"
-        raise NotImplementedError("not implemented")
 
-        preheader_block = self._new_block("uncond loop preheader")
-        header_block = self._new_block("uncond loop header")
-        exit_block = self._new_block("uncond loop exit")
+        body_st = unwrap(stmt.body.symbol_table)
+        preheader_block = self._new_block(body_st, "uncond loop preheader")
+        header_block = self._new_block(body_st, "uncond loop header")
+        update_block = self._new_block(body_st, "uncond loop update")
+        tail_block = self._new_block(body_st, "uncond loop tail")
+        exit_block = self._new_block(self.cur_block.symbol_table, "uncond loop exit")
 
-        body_block = self._new_block("uncond loop body")
-        tail_block = self._new_block("uncond loop tail")
-
-        self.break_targets.append(exit_block)
-        self.continue_targets.append(tail_block)
-
-        self.cur_block.add_child(preheader_block)
         self.cur_block.append(InstUncondJump(preheader_block))
-
+        self.cur_block.add_child(preheader_block)
         self._switch_to_block(preheader_block)
-        self.cur_block.add_child(header_block)
+
         self.cur_block.append(InstUncondJump(header_block))
-
+        self.cur_block.add_child(header_block)
         self._switch_to_block(header_block)
-        self.cur_block.add_child(body_block)
-        self.cur_block.append(InstUncondJump(body_block))
 
-        self._switch_to_block(body_block)
+        self.break_targets.append(tail_block)
+        self.continue_targets.append(update_block)
         self._build_block(stmt.body)
+        self.break_targets.pop()
+        self.continue_targets.pop()
 
         if len(self.cur_block.instructions) == 0 or not isinstance(
             self.cur_block.instructions[-1], (InstUncondJump, InstCmp, InstReturn)
         ):
-            self.cur_block.add_child(tail_block)
-            self.cur_block.append(InstUncondJump(tail_block))
+            self.cur_block.add_child(update_block)
+            self.cur_block.append(InstUncondJump(update_block))
+
+        self._switch_to_block(update_block)
+        self.cur_block.append(InstUncondJump(header_block))
+        self.cur_block.add_child(header_block)
 
         self._switch_to_block(tail_block)
-        self.cur_block.add_child(header_block)
-        self.cur_block.append(InstUncondJump(header_block))
+        self.cur_block.append(InstUncondJump(exit_block))
+        self.cur_block.add_child(exit_block)
 
-        self.break_targets.pop()
-        self.continue_targets.pop()
         self._switch_to_block(exit_block)
 
     def _build_return(self, stmt: Return):

@@ -245,7 +245,7 @@ class SSABuilder:
                     phi_var, phi_inst.lhs.base_pointer, version
                 )
 
-        for child in self.idom_tree.reversed_idom[bb]:
+        for child in sorted(self.idom_tree.reversed_idom[bb], key=lambda x: x.label):
             self._rename_helper(child)
 
         for var, c in block_new_assign_count.items():
