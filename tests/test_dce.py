@@ -800,3 +800,213 @@ class TestDCE(base.TestBase):
         """).strip()
 
         self.assert_ir(src, expected_ir)
+
+    def test_loop_array_write(self):
+        src = """
+        func main() -> int {
+            let a [8]int = {};
+            for {
+                foo(a);
+                if (bar()) {   
+                    a[5] = 10;  // live
+                }
+                
+                if (a[1] == 2) {
+                    break;
+                }
+            }
+            
+            return 0;
+        }
+        
+        func bar() -> int {
+            return 123; // random value
+        }
+
+        func foo (a [8]int) -> void {
+        }
+        """
+
+        expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                (<~)a_v1 = array_init([8])
+                jmp BB2
+            ; succ: [BB2]
+
+            ; pred: [BB0]
+            BB2: ; [uncond loop preheader]
+                jmp BB3
+            ; succ: [BB3]
+
+            ; pred: [BB2, BB4]
+            BB3: ; [uncond loop header]
+                %0_v1 = foo((<~)a_v1)
+                %2_v1 = bar()
+                cmp(%2_v1, 1)
+                if CF == 1 then jmp BB7 else jmp BB8
+            ; succ: [BB8, BB7]
+
+            ; pred: [BB3]
+            BB7: ; [then]
+                %4_v1 = 5 * 1
+                (a_v1<~)%5_v1 = (<~)a_v1 + %4_v1
+                Store((a_v1<~)%5_v1, 10)
+                jmp BB8
+            ; succ: [BB8]
+
+            ; pred: [BB3, BB7]
+            BB8: ; [merge]
+                %11_v1 = 1 * 1
+                (a_v1<~)%12_v1 = (<~)a_v1 + %11_v1
+                %8_v1 = Load((a_v1<~)%12_v1)
+                %7_v1 = %8_v1 == 2
+                cmp(%7_v1, 1)
+                if CF == 1 then jmp BB9 else jmp BB10
+            ; succ: [BB10, BB9]
+
+            ; pred: [BB8]
+            BB9: ; [then]
+                jmp BB5
+            ; succ: [BB5]
+
+            ; pred: [BB9]
+            BB5: ; [uncond loop tail]
+                jmp BB6
+            ; succ: [BB6]
+
+            ; pred: [BB5]
+            BB6: ; [uncond loop exit]
+                return(0)
+            ; succ: [BB1]
+
+            ; pred: [BB6]
+            BB1: ; [exit]
+            ; succ: []
+
+            ; pred: [BB8]
+            BB10: ; [merge]
+                jmp BB4
+            ; succ: [BB4]
+
+            ; pred: [BB10]
+            BB4: ; [uncond loop update]
+                jmp BB3
+            ; succ: [BB3]
+        """).strip()
+
+        self.assert_ir(src, expected_ir)
+
+    def test_dead_write_with_break(self):
+        src = """
+        func main() -> int {
+            let a [8]int = {};
+            for {
+                foo(a);
+                if (bar()) {   
+                    a[5] = 10;  // dead!
+                    break;
+                }                
+            }
+            return 0;
+        }
+        
+        func bar() -> int {
+            return 123; // random value
+        }
+
+        func foo (a [8]int) -> void {
+        }
+        """
+
+        expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                (<~)a_v1 = array_init([8])
+                jmp BB2
+            ; succ: [BB2]
+
+            ; pred: [BB0]
+            BB2: ; [uncond loop preheader]
+                jmp BB3
+            ; succ: [BB3]
+
+            ; pred: [BB2, BB4]
+            BB3: ; [uncond loop header]
+                %0_v1 = foo((<~)a_v1)
+                %2_v1 = bar()
+                cmp(%2_v1, 1)
+                if CF == 1 then jmp BB7 else jmp BB8
+            ; succ: [BB8, BB7]
+
+            ; pred: [BB3]
+            BB7: ; [then]
+                jmp BB5
+            ; succ: [BB5]
+
+            ; pred: [BB7]
+            BB5: ; [uncond loop tail]
+                jmp BB6
+            ; succ: [BB6]
+
+            ; pred: [BB5]
+            BB6: ; [uncond loop exit]
+                return(0)
+            ; succ: [BB1]
+
+            ; pred: [BB6]
+            BB1: ; [exit]
+            ; succ: []
+
+            ; pred: [BB3]
+            BB8: ; [merge]
+                jmp BB4
+            ; succ: [BB4]
+
+            ; pred: [BB8]
+            BB4: ; [uncond loop update]
+                jmp BB3
+            ; succ: [BB3] 
+        """).strip()
+
+        self.assert_ir(src, expected_ir)
+
+    def test_nesting_in_loop(self):
+        src = """
+        func main() -> int {
+            let a [8]int = {};
+            for {
+                {
+                    {
+                        foo(a);
+                    }
+                }
+                
+                {
+                    {
+                        {
+                            {
+                                a[4] = 4; // live
+                            }
+                        }
+                    }
+                }
+                if (bar()) {
+                    break;
+                }
+            }
+            return 0;
+        }
+        
+        func bar() -> int {
+            return 123; // random value
+        }
+
+        func foo (a [8]int) -> void {
+        }
+        """
+
+        expected_ir = textwrap.dedent("""
+        """).strip()
+
+        self.assert_ir(src, expected_ir)
