@@ -222,7 +222,6 @@ class SemanticAnalyzer:
             self.errors.append(e)
 
     def _analyze_function(self, func: Function):
-        """Analyze a function body."""
         # Create new scope for function and attach to function body Block
         func.body.symbol_table = SymbolTable(parent=self.global_scope)
         self.current_scope = func.body.symbol_table
@@ -260,7 +259,6 @@ class SemanticAnalyzer:
         self.current_function = None
 
     def _analyze_statement(self, stmt: Statement):
-        """Analyze a statement."""
         match stmt:
             case Assignment():
                 self._analyze_assignment(stmt)
@@ -290,7 +288,6 @@ class SemanticAnalyzer:
                 )
 
     def _analyze_assignment(self, stmt: Assignment):
-        """Analyze an assignment statement."""
         # Convert string type to Type object
         var_type = Type.from_string(stmt.type)
 
@@ -368,7 +365,6 @@ class SemanticAnalyzer:
             self.errors.append(e)
 
     def _analyze_reassignment(self, stmt: Reassignment):
-        """Analyze a reassignment statement."""
         # Analyze the lvalue to get the target type
         target_type = self._analyze_lvalue(stmt.lvalue)
         if target_type is None:
@@ -402,7 +398,6 @@ class SemanticAnalyzer:
             )
 
     def _analyze_lvalue(self, lvalue: LValue) -> Type | None:
-        """Analyze an lvalue and return its type."""
         match lvalue:
             case LValueIdentifier():
                 var_type = self.current_scope.lookup_variable(lvalue.name)
@@ -481,7 +476,6 @@ class SemanticAnalyzer:
                 return None
 
     def _analyze_condition(self, stmt: Condition):
-        """Analyze a condition statement."""
         # Condition should be boolean (int in this language)
         cond_type = self._analyze_expression(stmt.condition)
         if cond_type != Type("int"):
@@ -510,7 +504,6 @@ class SemanticAnalyzer:
             self.current_scope = old_scope
 
     def _analyze_for_loop(self, stmt: ForLoop):
-        """Analyze a C-style for loop statement."""
         # Create new scope for loop and attach to body Block
         old_scope = self.current_scope
         stmt.body.symbol_table = SymbolTable(parent=old_scope)
@@ -547,7 +540,6 @@ class SemanticAnalyzer:
         self.current_scope = old_scope
 
     def _analyze_unconditional_loop(self, stmt: UnconditionalLoop):
-        """Analyze an unconditional loop statement."""
         # Create new scope for loop and attach to body Block
         old_scope = self.current_scope
 
@@ -564,11 +556,9 @@ class SemanticAnalyzer:
         self.current_scope = old_scope
 
     def _analyze_function_call_stmt(self, stmt: FunctionCall):
-        """Analyze a function call statement."""
         self._check_function_call(stmt.name, stmt.args, stmt.line, stmt.column)
 
     def _analyze_return(self, stmt: Return):
-        """Analyze a return statement."""
         if not self.current_function:
             self.errors.append(
                 SemanticError(
@@ -612,14 +602,12 @@ class SemanticAnalyzer:
                     )
 
     def _analyze_break(self, stmt: Break):
-        """Analyze a break statement."""
         if self.loop_depth == 0:
             self.errors.append(
                 SemanticError("Break statement outside of loop", stmt.line, stmt.column)
             )
 
     def _analyze_continue(self, stmt: Continue):
-        """Analyze a continue statement."""
         if self.loop_depth == 0:
             self.errors.append(
                 SemanticError(
@@ -628,7 +616,6 @@ class SemanticAnalyzer:
             )
 
     def _analyze_block(self, stmt: Block):
-        """Analyze a block statement."""
         # Create new scope for block and attach to AST node
         old_scope = self.current_scope
         stmt.symbol_table = SymbolTable(parent=old_scope)
@@ -641,7 +628,6 @@ class SemanticAnalyzer:
         self.current_scope = old_scope
 
     def _analyze_expression(self, expr: Expression) -> Type:
-        """Analyze an expression and return its type."""
         match expr:
             case IntegerLiteral():
                 return Type("int")
@@ -681,7 +667,6 @@ class SemanticAnalyzer:
                 return Type("int")  # Default to int for error recovery
 
     def _analyze_array_access(self, expr: ArrayAccess) -> Type:
-        """Analyze an array access expression."""
         # Analyze the base expression
         base_type = self._analyze_expression(expr.base)
 
@@ -726,7 +711,6 @@ class SemanticAnalyzer:
         return Type(base_type.base_type)
 
     def _analyze_binary_op(self, expr: BinaryOp) -> Type:
-        """Analyze a binary operation."""
         left_type = self._analyze_expression(expr.left)
         right_type = self._analyze_expression(expr.right)
 
@@ -753,7 +737,6 @@ class SemanticAnalyzer:
         return Type("int")
 
     def _analyze_unary_op(self, expr: UnaryOp) -> Type:
-        """Analyze a unary operation."""
         operand_type = self._analyze_expression(expr.operand)
 
         if operand_type != Type("int"):
@@ -768,7 +751,6 @@ class SemanticAnalyzer:
         return Type("int")
 
     def _analyze_call_expression(self, expr: CallExpression) -> Type:
-        """Analyze a function call expression."""
         # Try to get line/column from current function or use defaults
         line = self.current_function.line if self.current_function else 0
         column = self.current_function.column if self.current_function else 0
