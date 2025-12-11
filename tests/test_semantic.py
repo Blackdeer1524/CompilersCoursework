@@ -44,12 +44,12 @@ class TestSemanticAnalyzer(unittest.TestCase):
 
     def test_valid_assignment(self):
         """Test valid assignment."""
-        source = "func main() -> void { a int = 1; }"
+        source = "func main() -> void { let a int = 1; }"
         self.assert_no_errors(source)
 
     def test_valid_reassignment(self):
         """Test valid reassignment."""
-        source = "func main() -> void { a int = 1; a = 2; }"
+        source = "func main() -> void { let a int = 1; a = 2; }"
         self.assert_no_errors(source)
 
     def test_valid_function_call(self):
@@ -61,7 +61,7 @@ func main() -> void { foo(); }"""
     def test_valid_function_with_arguments(self):
         """Test valid function with arguments."""
         source = """func add(x int, y int) -> int { return x + y; }
-func main() -> void { a int = add(1, 2); }"""
+func main() -> void { let a int = add(1, 2); }"""
         self.assert_no_errors(source)
 
     def test_valid_complex_program(self):
@@ -71,11 +71,11 @@ func main() -> void { a int = add(1, 2); }"""
 }
 
 func main() -> void {
-    a int = 1;
-    b int = 2;
-    c int = add(a, b);
+    let a int = 1;
+    let b int = 2;
+    let c int = add(a, b);
     if (c > 0) {
-        d int = c * 2;
+        let d int = c * 2;
     }
     return;
 }"""
@@ -90,7 +90,7 @@ func main() -> void {
 
     def test_undefined_function_in_expression(self):
         """Test error when function call in expression is undefined."""
-        source = "func main() -> void { a int = bar(); }"
+        source = "func main() -> void { let a int = bar(); }"
         self.assert_has_error(source, "Function 'bar' is not declared")
 
     # Function argument errors
@@ -119,7 +119,7 @@ func main() -> void { foo(1); }"""
         # might not directly apply, but we test the mechanism
         source = """func foo(x int) -> int { return x; }
 func main() -> void { 
-    y int = 1;
+    let y int = 1;
     foo(y);  // This should be OK since y is int
 }"""
         self.assert_no_errors(source)
@@ -128,7 +128,7 @@ func main() -> void {
 
     def test_undefined_variable(self):
         """Test error when variable is not defined."""
-        source = "func main() -> void { a int = x; }"
+        source = "func main() -> void { let a int = x; }"
         self.assert_has_error(source, "Variable 'x' is not declared")
 
     def test_undefined_variable_in_reassignment(self):
@@ -138,25 +138,25 @@ func main() -> void {
 
     def test_undefined_variable_in_expression(self):
         """Test error when using undefined variable in expression."""
-        source = "func main() -> void { a int = x + 1; }"
+        source = "func main() -> void { let a int = x + 1; }"
         self.assert_has_error(source, "Variable 'x' is not declared")
 
     def test_variable_redeclaration_same_scope(self):
         """Test error when variable is redeclared in same scope."""
-        source = "func main() -> void { a int = 1; a int = 2; }"
+        source = "func main() -> void { let a int = 1; let a int = 2; }"
         self.assert_has_error(source, "Variable 'a' already declared in this scope")
 
     def test_variable_redeclaration_parameter(self):
         """Test error when variable shadows parameter."""
-        source = "func foo(x int) -> void { x int = 1; }"
+        source = "func foo(x int) -> void { let x int = 1; }"
         self.assert_has_error(source, "Variable 'x' already declared in this scope")
 
     def test_variable_access_from_inner_scope(self):
         """Test that variables from outer scope are accessible."""
         source = """func main() -> void {
-    a int = 1;
+    let a int = 1;
     if (a < 10) {
-        b int = a;
+        let b int = a;
     }
 }"""
         self.assert_no_errors(source)
@@ -165,17 +165,17 @@ func main() -> void {
         """Test error when accessing variable from inner scope."""
         source = """func main() -> void {
     if (1 < 10) {
-        a int = 1;
+        let a int = 1;
     }
-    b int = a;
+    let b int = a;
 }"""
         self.assert_has_error(source, "Variable 'a' is not declared")
 
     def test_variable_scope_in_for_loop(self):
         """Test variable scope in for loop."""
         source = """func main() -> void {
-    for (i int = 0; i < 10; i = i + 1) {
-        j int = i;
+    for (let i int = 0; i < 10; i = i + 1) {
+        let j int = i;
     }
 }"""
         self.assert_no_errors(source)
@@ -184,7 +184,7 @@ func main() -> void {
         """Test variable scope in unconditional loop."""
         source = """func main() -> void {
     for {
-        a int = 1;
+        let a int = 1;
     }
 }"""
         self.assert_no_errors(source)
@@ -193,7 +193,7 @@ func main() -> void {
         """Test variable scope in block."""
         source = """func main() -> void {
     {
-        a int = 1;
+        let a int = 1;
     }
 }"""
         self.assert_no_errors(source)
@@ -228,35 +228,35 @@ func main() -> void {
         """Test error when assignment type doesn't match."""
         # In this language, all expressions are int, so this test mainly
         # ensures the type checking mechanism works
-        source = "func main() -> void { a int = 1; }"
+        source = "func main() -> void { let a int = 1; }"
         self.assert_no_errors(source)
 
     def test_reassignment_type_mismatch(self):
         """Test error when reassignment type doesn't match."""
         # Similar to above - all expressions are int
-        source = "func main() -> void { a int = 1; a = 2; }"
+        source = "func main() -> void { let a int = 1; a = 2; }"
         self.assert_no_errors(source)
 
     # Expression type checking
 
     def test_binary_operation_types(self):
         """Test that binary operations work correctly."""
-        source = "func main() -> void { a int = 1 + 2; b int = 3 * 4; c int = 5 - 6; }"
+        source = "func main() -> void { let a int = 1 + 2; let b int = 3 * 4; let c int = 5 - 6; }"
         self.assert_no_errors(source)
 
     def test_unary_operation_types(self):
         """Test that unary operations work correctly."""
-        source = "func main() -> void { a int = -1; b int = !0; }"
+        source = "func main() -> void { let a int = -1; let b int = !0; }"
         self.assert_no_errors(source)
 
     def test_comparison_operations(self):
         """Test that comparison operations work correctly."""
-        source = "func main() -> void { a int = 1 < 2; b int = 3 > 4; c int = 5 == 6; }"
+        source = "func main() -> void { let a int = 1 < 2; let b int = 3 > 4; let c int = 5 == 6; }"
         self.assert_no_errors(source)
 
     def test_logical_operations(self):
         """Test that logical operations work correctly."""
-        source = "func main() -> void { a int = 1 && 2; b int = 3 || 4; }"
+        source = "func main() -> void { let a int = 1 && 2; let b int = 3 || 4; }"
         self.assert_no_errors(source)
 
     # Function declaration errors
@@ -277,7 +277,7 @@ func foo() -> void { }"""
 
     def test_for_loop_condition_type(self):
         """Test that for loop condition must be int."""
-        source = "func main() -> void { for (i int = 0; i < 10; i = i + 1) { } }"
+        source = "func main() -> void { for (let i int = 0; i < 10; i = i + 1) { } }"
         self.assert_no_errors(source)
 
     # Complex scenarios
@@ -286,7 +286,7 @@ func foo() -> void { }"""
         """Test nested function calls."""
         source = """func add(x int, y int) -> int { return x + y; }
 func main() -> void {
-    a int = add(add(1, 2), add(3, 4));
+    let a int = add(add(1, 2), add(3, 4));
 }"""
         self.assert_no_errors(source)
 
@@ -294,16 +294,16 @@ func main() -> void {
         """Test function call as function argument."""
         source = """func add(x int, y int) -> int { return x + y; }
 func main() -> void {
-    a int = add(add(1, 2), 3);
+    let a int = add(add(1, 2), 3);
 }"""
         self.assert_no_errors(source)
 
     def test_multiple_errors(self):
         """Test that multiple errors are detected."""
         source = """func main() -> void {
-    a int = x;  // x undefined
+    let a int = x;  // x undefined
     foo();  // foo undefined
-    b int = a;  // OK - a is defined
+    let b int = a;  // OK - a is defined
 }"""
         errors = self.analyze_source(source)
         self.assertGreaterEqual(len(errors), 2, "Expected at least 2 errors")
@@ -318,7 +318,7 @@ func main() -> void {
     def test_parameter_in_expression(self):
         """Test using parameters in expressions."""
         source = """func compute(a int, b int) -> int {
-    c int = a + b;
+    let c int = a + b;
     return c * 2;
 }"""
         self.assert_no_errors(source)
@@ -327,9 +327,9 @@ func main() -> void {
         """Test if-else blocks."""
         source = """func main() -> void {
     if (1 < 2) {
-        a int = 1;
+        let a int = 1;
     } else {
-        a int = 2;
+        let a int = 2;
     }
 }"""
         self.assert_no_errors(source)
@@ -338,9 +338,9 @@ func main() -> void {
         """Test variable scoping in if-else blocks."""
         source = """func main() -> void {
     if (1 < 2) {
-        a int = 1;
+        let a int = 1;
     } else {
-        a int = 2;
+        let a int = 2;
     }
     // Each branch has its own scope, so a is not accessible here
 }"""
@@ -350,17 +350,17 @@ func main() -> void {
     def test_complex_expression_types(self):
         """Test complex expression type checking."""
         source = """func main() -> void {
-    a int = (1 + 2) * (3 - 4);
-    b int = 1 < 2 && 3 > 4;
-    c int = 1 || 2 && 3;
+    let a int = (1 + 2) * (3 - 4);
+    let b int = 1 < 2 && 3 > 4;
+    let c int = 1 || 2 && 3;
 }"""
         self.assert_no_errors(source)
 
     def test_for_loop_variable_scope(self):
         """Test variable scope in for loop init."""
         source = """func main() -> void {
-    for (i int = 0; i < 10; i = i + 1) {
-        j int = i;  // i should be accessible
+    for (let i int = 0; i < 10; i = i + 1) {
+        let j int = i;  // i should be accessible
     }
 }"""
         self.assert_no_errors(source)
@@ -369,8 +369,8 @@ func main() -> void {
         """Test unconditional loop body."""
         source = """func main() -> void {
     for {
-        a int = 1;
-        b int = 2;
+        let a int = 1;
+        let b int = 2;
     }
 }"""
         self.assert_no_errors(source)
@@ -379,9 +379,9 @@ func main() -> void {
         """Test block statements."""
         source = """func main() -> void {
     {
-        a int = 1;
+        let a int = 1;
         {
-            b int = 2;
+            let b int = 2;
         }
     }
 }"""
@@ -402,9 +402,9 @@ func main() -> void {
         """Test function call with variable arguments."""
         source = """func add(x int, y int) -> int { return x + y; }
 func main() -> void {
-    a int = 1;
-    b int = 2;
-    c int = add(a, b);
+    let a int = 1;
+    let b int = 2;
+    let c int = add(a, b);
 }"""
         self.assert_no_errors(source)
 
@@ -412,7 +412,7 @@ func main() -> void {
         """Test function call with expression arguments."""
         source = """func add(x int, y int) -> int { return x + y; }
 func main() -> void {
-    a int = add(1 + 2, 3 * 4);
+    let a int = add(1 + 2, 3 * 4);
 }"""
         self.assert_no_errors(source)
 
@@ -427,9 +427,19 @@ func baz(x int) -> int { return x; }"""
         """Test calling function from another function."""
         source = """func helper() -> int { return 1; }
 func main() -> void {
-    a int = helper();
+    let a int = helper();
 }"""
         self.assert_no_errors(source)
+
+    def test_loop_variable_scope(self):
+        """Test variable scope in block."""
+        source = """
+        func main() -> int {
+            for (let i int = 0; i < 10; i = i + 1) {
+            }
+            return i;
+        }"""
+        self.assert_has_error(source, "Variable 'i' is not declared")
 
 
 if __name__ == "__main__":

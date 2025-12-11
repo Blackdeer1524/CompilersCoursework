@@ -12,8 +12,8 @@ class TestSCCPAndDCE(base.TestBase):
 
     def test_dead_on_condition(self):
         src = self.make_main("""
-            a int = 0; // dead
-            N int = 0;
+            let a int = 0; // dead
+            let N int = 0;
             if (N == 0) {
                 return N;
             }
@@ -31,6 +31,10 @@ class TestSCCPAndDCE(base.TestBase):
             ; pred: [BB0]
             BB2: ; [then]
                 return(0)
+            ; succ: [BB1]
+
+            ; pred: [BB2]
+            BB1: ; [exit]
             ; succ: []
         """).strip()
 
@@ -38,10 +42,10 @@ class TestSCCPAndDCE(base.TestBase):
 
     def test_dead_loop_causes_dead_code(self):
         src = self.make_main("""
-            N int = 0;
-            a int = 0;
-            c int = 0;
-            for (i int = 0; i < N; i = i + 1) {
+            let N int = 0;
+            let a int = 0;
+            let c int = 0;
+            for (let i int = 0; i < N; i = i + 1) {
                 a = (a + 1) * 2;
             }
             return c;
@@ -54,19 +58,19 @@ class TestSCCPAndDCE(base.TestBase):
             ; succ: [BB2]
 
             ; pred: [BB0]
-            BB2: ; [loop init]
-                jmp BB3
-            ; succ: [BB3]
+            BB2: ; [condition check]
+                jmp BB7
+            ; succ: [BB7]
 
             ; pred: [BB2]
-            BB3: ; [loop header]
-                jmp BB4
-            ; succ: [BB4]
-
-            ; pred: [BB3]
-            BB4: ; [loop exit]
+            BB7: ; [loop exit]
                 return(0)
+            ; succ: [BB1]
+
+            ; pred: [BB7]
+            BB1: ; [exit]
             ; succ: []
         """).strip()
 
         self.assert_ir(src, expected_ir)
+

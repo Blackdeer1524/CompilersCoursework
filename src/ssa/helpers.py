@@ -1,22 +1,17 @@
-import random
+from hashlib import sha256
+from typing import Any, Optional
 
-
-random.seed(42)
-
-step = 256
-cur = 128
 
 bb_colors = {}
-i = 0
 
 
 def color_label(l: str) -> str:
-    global cur, step
     if bb_colors.get(l) is None:
-        cur = random.randint(0, 255)
-        r = hex((cur + 192) % 256)[2:]
-        g = hex((cur + 86) % 256)[2:]
-        b = hex(cur % 256)[2:]
+        h = sha256(l.encode()).hexdigest()
+
+        r = h[-2:]
+        g = h[0:2]
+        b = h[-4:-2]
 
         if len(r) == 1:
             r = "0" + r
@@ -27,9 +22,9 @@ def color_label(l: str) -> str:
 
         bb_colors[l] = f"#{r}{g}{b}"
 
-        # cur += step
-        # if cur >= 256:
-        #     step //= 2
-        #     cur = step // 2
-
     return f'<B><font color="{bb_colors[l]}">{l}</font></B>'
+
+
+def unwrap[T: Any](v: Optional[T]) -> T:
+    assert v is not None
+    return v

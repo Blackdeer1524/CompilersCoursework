@@ -7,8 +7,10 @@ from typing import Optional, Iterable
 from src.ssa.cfg import (
     CFG,
     BasicBlock,
+    InstArrayInit,
     InstAssign,
     Instruction,
+    OpLoad,
     Operation,
     OpBinary,
     OpUnary,
@@ -67,6 +69,9 @@ class LICM:
                         ):
                             use_key = (operand.name, operand.version)
                             self.uses[use_key].add(def_key)
+                elif isinstance(inst, InstArrayInit) and inst.lhs.version is not None:
+                    def_key = (inst.lhs.name, inst.lhs.version)
+                    self.def_to_block[def_key] = bb
 
     def _find_loops(self, cfg: CFG) -> list[LoopInfo]:
         assert self.dom_tree is not None
@@ -76,20 +81,32 @@ class LICM:
                 if not self._dominates(succ, bb):
                     continue
 
-                assert len(bb.succ) == 2  # one back edge and one forward edge
+                # one back edge and one forward edge for a conditional for loop
+                # one back edge for the unconditional one
+                assert len(bb.succ) <= 2
 
                 loop_blocks = self._collect_loop_blocks(header=succ, tail=bb)
                 preheaders = [pred for pred in succ.preds if pred not in loop_blocks]
                 assert len(preheaders) == 1
 
-                loops.append(
-                    LoopInfo(
-                        header=succ,
-                        preheader=preheaders[0],
-                        blocks=loop_blocks,
-                        exit_block=bb.succ[0] if bb.succ[0] != succ else bb.succ[1],
+                if len(bb.succ) == 2:
+                    loops.append(
+                        LoopInfo(
+                            header=succ,
+                            preheader=preheaders[0],
+                            blocks=loop_blocks,
+                            exit_block=bb.succ[0] if bb.succ[0] != succ else bb.succ[1],
+                        )
                     )
-                )
+                elif len(bb.succ) == 1:
+                    loops.append(
+                        LoopInfo(
+                            header=succ,
+                            preheader=preheaders[0],
+                            blocks=loop_blocks,
+                            exit_block=bb.succ[0],
+                        )
+                    )
 
         return loops
 
@@ -169,8 +186,8 @@ class LICM:
             return False
 
         rhs = inst.rhs
-        if isinstance(rhs, OpCall):
-            return False  # potential side effects -> no hoisting
+        if isinstance(rhs, OpCall) or isinstance(rhs, OpLoad):
+            return False
 
         if not self._dominates(inst_block, exit_block):
             return False
@@ -198,6 +215,8 @@ class LICM:
     def _collect_operands(self, rhs: Operation | SSAValue) -> Iterable[SSAValue]:
         if isinstance(rhs, Operation):
             match rhs:
+                case OpLoad(addr):
+                    return [addr]
                 case OpBinary(_, left, right):
                     return [left, right]
                 case OpUnary(_, val):

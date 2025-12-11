@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, List, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -53,7 +53,7 @@ class Assignment(Statement):
 
 @dataclass
 class Reassignment(Statement):
-    name: str
+    lvalue: "LValue"
     value: "Expression"
     line: int
     column: int
@@ -152,6 +152,36 @@ class CallExpression(Expression):
     args: List[Expression]
 
 
+@dataclass
+class ArrayAccess(Expression):
+    base: Expression
+    indices: List[Expression]
+
+
+@dataclass
+class ArrayInit(Expression):
+    pass
+
+
+@dataclass
+class LValue(ASTNode):
+    """Left-hand side value for assignments - can be identifier or array access."""
+
+    line: int
+    column: int
+
+
+@dataclass
+class LValueIdentifier(LValue):
+    name: str
+
+
+@dataclass
+class LValueArrayAccess(LValue):
+    base: str  # Base variable name
+    indices: List[Expression]
+
+
 class ParseError(Exception):
     def __init__(self, message: str, token: Optional[Token] = None):
         self.message = message
@@ -238,21 +268,40 @@ class Parser:
         name_token = self.expect(TokenType.IDENTIFIER)
         name = name_token.value
 
-        type_token = self.expect(TokenType.INT)  # Only int is supported for now
-        arg_type = type_token.value
+        arg_type = self.parse_type()
 
         return Argument(name, arg_type)
 
     def parse_type(self) -> str:
-        """TYPE ::= int | void"""
+        """TYPE ::= int | ("[" %integer% "]")+ int | void"""
+        # Parse array dimensions
+        dimensions = []
+        while self.check(TokenType.LBRACKET):
+            self.advance()  # consume '['
+            if not self.check(TokenType.INTEGER):
+                raise ParseError(
+                    "Expected integer in array dimension", self.current_token
+                )
+            dim_token = self.expect(TokenType.INTEGER)
+            dimensions.append(int(dim_token.value))
+            self.expect(TokenType.RBRACKET)  # consume ']'
+
+        # Parse base type
         if self.check(TokenType.INT):
             self.advance()
-            return "int"
+            base_type = "int"
         elif self.check(TokenType.VOID):
             self.advance()
-            return "void"
+            base_type = "void"
         else:
             raise ParseError("Expected 'int' or 'void'", self.current_token)
+
+        # Build type string
+        if dimensions:
+            dims_str = "".join(f"[{d}]" for d in dimensions)
+            return f"{dims_str}{base_type}"
+        else:
+            return base_type
 
     def parse_statements(self) -> List[Statement]:
         """STATEMENTS ::= STATEMENT*"""
@@ -292,55 +341,111 @@ class Parser:
         if self.check(TokenType.CONTINUE):
             return self.parse_continue()
 
-        # ASSIGNMENT or REASSIGNMENT or FUNCTION_CALL
+        # ASSIGNMENT (starts with "let")
+        if self.check(TokenType.LET):
+            return self.parse_assignment()
+
+        # REASSIGNMENT or FUNCTION_CALL
         if self.check(TokenType.IDENTIFIER):
-            # Peek ahead to distinguish between assignment, reassignment, and function call
+            # Peek ahead to distinguish between reassignment and function call
             if self.pos + 1 < len(self.tokens):
                 next_token = self.tokens[self.pos + 1]
 
-                # ASSIGNMENT: identifier int = ...
-                if next_token.type == TokenType.INT:
-                    return self.parse_assignment()
                 # FUNCTION_CALL: identifier ( ...
-                elif next_token.type == TokenType.LPAREN:
+                if next_token.type == TokenType.LPAREN:
                     call = self.parse_function_call()
                     self.expect(TokenType.SEMICOLON)
                     return call
-                # REASSIGNMENT: identifier = ...
+                # REASSIGNMENT: identifier = ... or identifier[...] = ...
                 elif next_token.type == TokenType.ASSIGN:
                     return self.parse_reassignment()
+                # REASSIGNMENT: identifier[...] = ... (array element assignment)
+                elif next_token.type == TokenType.LBRACKET:
+                    # Look ahead to see if this is array access followed by =
+                    peek_pos = self.pos + 1
+                    bracket_count = 0
+                    found_assign = False
+                    while peek_pos < len(self.tokens):
+                        tok = self.tokens[peek_pos]
+                        if tok.type == TokenType.LBRACKET:
+                            bracket_count += 1
+                        elif tok.type == TokenType.RBRACKET:
+                            bracket_count -= 1
+                        elif tok.type == TokenType.ASSIGN and bracket_count == 0:
+                            found_assign = True
+                            break
+                        elif tok.type in (
+                            TokenType.SEMICOLON,
+                            TokenType.EOF,
+                            TokenType.RBRACE,
+                        ):
+                            break
+                        peek_pos += 1
+
+                    if found_assign:
+                        return self.parse_reassignment()
+                    # Otherwise, this is an array access in expression context
+                    # which shouldn't appear as a statement, but let it fall through to error
 
         raise ParseError(f"Unexpected token: {token.type.name}", token)
 
     def parse_assignment(self) -> Assignment:
-        """ASSIGNMENT ::= %name% %type% "=" EXPR ";" """
+        """ASSIGNMENT ::= "let" %name% %type% "=" EXPR ";" """
+        self.expect(TokenType.LET)  # consume "let"
+
         name_token = self.expect(TokenType.IDENTIFIER)
         name = name_token.value
         line = name_token.line
         column = name_token.column
 
-        type_token = self.expect(TokenType.INT)
-        var_type = type_token.value
+        var_type = self.parse_type()
 
         self.expect(TokenType.ASSIGN)
-        value = self.parse_expr()
+
+        # Check for array initialization: {}
+        if self.check(TokenType.LBRACE):
+            self.advance()  # consume '{'
+            self.expect(TokenType.RBRACE)  # consume '}'
+            value = ArrayInit()
+        else:
+            value = self.parse_expr()
+
         self.expect(TokenType.SEMICOLON)
 
         return Assignment(name, var_type, value, line, column)
 
     def parse_reassignment(self, require_semicolon: bool = True) -> Reassignment:
-        """REASSIGNMENT ::= %name% "=" EXPR [";"]"""
-        name_token = self.expect(TokenType.IDENTIFIER)
-        name = name_token.value
-        line = name_token.line
-        column = name_token.column
+        """REASSIGNMENT ::= EXPR_LVALUE "=" EXPR [";"]"""
+        lvalue = self.parse_lvalue()
+        line = lvalue.line if hasattr(lvalue, "line") else 0
+        column = lvalue.column if hasattr(lvalue, "column") else 0
 
         self.expect(TokenType.ASSIGN)
         value = self.parse_expr()
         if require_semicolon:
             self.expect(TokenType.SEMICOLON)
 
-        return Reassignment(name, value, line, column)
+        return Reassignment(lvalue, value, line, column)
+
+    def parse_lvalue(self) -> "LValue":
+        """EXPR_LVALUE ::= %name% ("[" EXPR "]")*"""
+        name_token = self.expect(TokenType.IDENTIFIER)
+        base_name = name_token.value
+        line = name_token.line
+        column = name_token.column
+
+        # Check for array indexing
+        indices = []
+        while self.check(TokenType.LBRACKET):
+            self.advance()  # consume '['
+            index_expr = self.parse_expr()
+            indices.append(index_expr)
+            self.expect(TokenType.RBRACKET)  # consume ']'
+
+        if indices:
+            return LValueArrayAccess(line, column, base_name, indices)
+        else:
+            return LValueIdentifier(line, column, base_name)
 
     def parse_condition(self) -> Condition:
         """CONDITION ::= if "(" EXPR ")" BLOCK [else BLOCK]"""
@@ -455,7 +560,7 @@ class Parser:
         """EXPR_OR ::= EXPR_AND ("||" EXPR_AND)*"""
         left = self.parse_expr_and()
         while self.check(TokenType.OR):
-            op_token = self.advance()
+            self.advance()
             right = self.parse_expr_and()
             left = BinaryOp("||", left, right)
         return left
@@ -464,7 +569,7 @@ class Parser:
         """EXPR_AND ::= EXPR_COMP ("&&" EXPR_COMP)*"""
         left = self.parse_expr_comp()
         while self.check(TokenType.AND):
-            op_token = self.advance()
+            self.advance()
             right = self.parse_expr_comp()
             left = BinaryOp("&&", left, right)
         return left
@@ -497,8 +602,8 @@ class Parser:
                 break
             op_token = self.current_token
             self.advance()
-            right = self.parse_expr_mul()
             op_str = op_token.value
+            right = self.parse_expr_mul()
             left = BinaryOp(op_str, left, right)
         return left
 
@@ -510,8 +615,8 @@ class Parser:
                 break
             op_token = self.current_token
             self.advance()
-            right = self.parse_expr_unary()
             op_str = op_token.value
+            right = self.parse_expr_unary()
             left = BinaryOp(op_str, left, right)
         return left
 
@@ -529,7 +634,7 @@ class Parser:
             return self.parse_expr_atom()
 
     def parse_expr_atom(self) -> Expression:
-        """EXPR_ATOM ::= %name% | %integer% | "(" EXPR ")" | FUNCTION_CALL"""
+        """EXPR_ATOM ::= %name% ("[" EXPR "]")* | %integer% | "(" EXPR ")" | FUNCTION_CALL"""
         if self.check(TokenType.INTEGER):
             token = self.expect(TokenType.INTEGER)
             return IntegerLiteral(int(token.value))
@@ -547,7 +652,20 @@ class Parser:
                 return CallExpression(name, args)
             else:
                 token = self.expect(TokenType.IDENTIFIER)
-                return Identifier(token.value)
+                base = Identifier(token.value)
+
+                # Check for array indexing: [expr][expr]...
+                indices = []
+                while self.check(TokenType.LBRACKET):
+                    self.advance()  # consume '['
+                    index_expr = self.parse_expr()
+                    indices.append(index_expr)
+                    self.expect(TokenType.RBRACKET)  # consume ']'
+
+                if indices:
+                    return ArrayAccess(base, indices)
+                else:
+                    return base
         elif self.check(TokenType.LPAREN):
             self.advance()
             expr = self.parse_expr()

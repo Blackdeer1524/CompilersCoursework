@@ -9,7 +9,6 @@ from src.ssa.ssa import SSABuilder
 from src.optimizations.sccp import SCCP
 from src.optimizations.licm import LICM
 from src.optimizations.dce import DCE
-from src.optimizations.block_cleanup import BlockCleanup
 
 
 def main():
@@ -55,7 +54,7 @@ def main():
         action="store_true",
         help="disables phi-nodes placement",
     )
-    
+
     arg_parser.add_argument(
         "--disable-idom-tree",
         action="store_true",
@@ -108,12 +107,12 @@ def main():
             rev_idom = {}
         else:
             rev_idom = idom_tree.reversed_idom
-        
+
         if args.disable_df:
             df = {}
         else:
             df = compute_dominance_frontier_graph(cfg, idom_tree)
-            
+
         graphviz = cfg.to_graphviz(rev_idom, df)
         if args.dump_cfg_dot:
             with open(args.dump_cfg_dot, "w") as f:

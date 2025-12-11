@@ -8,6 +8,7 @@ class TokenType(Enum):
     FUNC = "func"
     INT = "int"
     VOID = "void"
+    LET = "let"
     IF = "if"
     ELSE = "else"
     FOR = "for"
@@ -42,6 +43,8 @@ class TokenType(Enum):
     RPAREN = ")"
     LBRACE = "{"
     RBRACE = "}"
+    LBRACKET = "["
+    RBRACKET = "]"
     SEMICOLON = ";"
     COMMA = ","
 
@@ -71,6 +74,7 @@ class Lexer:
             "func": TokenType.FUNC,
             "int": TokenType.INT,
             "void": TokenType.VOID,
+            "let": TokenType.LET,
             "if": TokenType.IF,
             "else": TokenType.ELSE,
             "for": TokenType.FOR,
@@ -177,6 +181,12 @@ class Lexer:
         elif char == "}":
             self.advance()
             return Token(TokenType.RBRACE, "}", line, column)
+        elif char == "[":
+            self.advance()
+            return Token(TokenType.LBRACKET, "[", line, column)
+        elif char == "]":
+            self.advance()
+            return Token(TokenType.RBRACKET, "]", line, column)
         elif char == ";":
             self.advance()
             return Token(TokenType.SEMICOLON, ";", line, column)

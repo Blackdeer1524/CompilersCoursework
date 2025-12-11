@@ -97,7 +97,7 @@ func bar() -> int { return 1; }"""
 
     def test_assignment_statement(self):
         """Test parsing assignment statement."""
-        source = "func main() -> void { a int = 1; }"
+        source = "func main() -> void { let a int = 1; }"
         ast = self.parse_source(source)
 
         stmt = ast.functions[0].body.statements[0]
@@ -109,12 +109,14 @@ func bar() -> int { return 1; }"""
 
     def test_reassignment_statement(self):
         """Test parsing reassignment statement."""
-        source = "func main() -> void { a int = 1; a = 2; }"
+        source = "func main() -> void { let a int = 1; a = 2; }"
         ast = self.parse_source(source)
 
         reassign = ast.functions[0].body.statements[1]
         self.assertIsInstance(reassign, Reassignment)
-        self.assertEqual(reassign.name, "a")
+        from src.parsing.parser import LValueIdentifier
+        self.assertIsInstance(reassign.lvalue, LValueIdentifier)
+        self.assertEqual(reassign.lvalue.name, "a")
         self.assertIsInstance(reassign.value, IntegerLiteral)
         self.assertEqual(reassign.value.value, 2)
 
@@ -192,7 +194,7 @@ func bar() -> int { return 1; }"""
 
     def test_for_loop(self):
         """Test parsing C-style for loop."""
-        source = "func main() -> void { for (i int = 0; i < 10; i = i + 1) { } }"
+        source = "func main() -> void { for (let i int = 0; i < 10; i = i + 1) { } }"
         ast = self.parse_source(source)
 
         stmt = ast.functions[0].body.statements[0]
@@ -201,11 +203,11 @@ func bar() -> int { return 1; }"""
         self.assertEqual(stmt.init.name, "i")
         self.assertIsInstance(stmt.condition, BinaryOp)
         self.assertIsInstance(stmt.update, Reassignment)
-        self.assertEqual(stmt.update.name, "i")
+        self.assertEqual(stmt.update.lvalue.name, "i")
 
     def test_block_statement(self):
         """Test parsing block statement."""
-        source = "func main() -> void { { a int = 1; } }"
+        source = "func main() -> void { { let a int = 1; } }"
         ast = self.parse_source(source)
 
         stmt = ast.functions[0].body.statements[0]
@@ -217,7 +219,7 @@ func bar() -> int { return 1; }"""
 
     def test_integer_literal(self):
         """Test parsing integer literal."""
-        source = "func main() -> void { a int = 42; }"
+        source = "func main() -> void { let a int = 42; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -226,7 +228,7 @@ func bar() -> int { return 1; }"""
 
     def test_identifier_expression(self):
         """Test parsing identifier expression."""
-        source = "func main() -> void { a int = x; }"
+        source = "func main() -> void { let a int = x; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -235,7 +237,7 @@ func bar() -> int { return 1; }"""
 
     def test_binary_addition(self):
         """Test parsing binary addition."""
-        source = "func main() -> void { a int = 1 + 2; }"
+        source = "func main() -> void { let a int = 1 + 2; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -246,7 +248,7 @@ func bar() -> int { return 1; }"""
 
     def test_binary_subtraction(self):
         """Test parsing binary subtraction."""
-        source = "func main() -> void { a int = 5 - 3; }"
+        source = "func main() -> void { let a int = 5 - 3; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -255,7 +257,7 @@ func bar() -> int { return 1; }"""
 
     def test_binary_multiplication(self):
         """Test parsing binary multiplication."""
-        source = "func main() -> void { a int = 2 * 3; }"
+        source = "func main() -> void { let a int = 2 * 3; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -264,7 +266,7 @@ func bar() -> int { return 1; }"""
 
     def test_binary_division(self):
         """Test parsing binary division."""
-        source = "func main() -> void { a int = 10 / 2; }"
+        source = "func main() -> void { let a int = 10 / 2; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -273,7 +275,7 @@ func bar() -> int { return 1; }"""
 
     def test_binary_modulo(self):
         """Test parsing binary modulo."""
-        source = "func main() -> void { a int = 10 % 3; }"
+        source = "func main() -> void { let a int = 10 % 3; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -282,7 +284,7 @@ func bar() -> int { return 1; }"""
 
     def test_binary_comparison_less(self):
         """Test parsing less than comparison."""
-        source = "func main() -> void { a int = 1 < 2; }"
+        source = "func main() -> void { let a int = 1 < 2; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -291,7 +293,7 @@ func bar() -> int { return 1; }"""
 
     def test_binary_comparison_less_equal(self):
         """Test parsing less than or equal comparison."""
-        source = "func main() -> void { a int = 1 <= 2; }"
+        source = "func main() -> void { let a int = 1 <= 2; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -300,7 +302,7 @@ func bar() -> int { return 1; }"""
 
     def test_binary_comparison_greater(self):
         """Test parsing greater than comparison."""
-        source = "func main() -> void { a int = 2 > 1; }"
+        source = "func main() -> void { let a int = 2 > 1; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -309,7 +311,7 @@ func bar() -> int { return 1; }"""
 
     def test_binary_comparison_greater_equal(self):
         """Test parsing greater than or equal comparison."""
-        source = "func main() -> void { a int = 2 >= 1; }"
+        source = "func main() -> void { let a int = 2 >= 1; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -318,7 +320,7 @@ func bar() -> int { return 1; }"""
 
     def test_binary_equality(self):
         """Test parsing equality comparison."""
-        source = "func main() -> void { a int = 1 == 1; }"
+        source = "func main() -> void { let a int = 1 == 1; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -327,7 +329,7 @@ func bar() -> int { return 1; }"""
 
     def test_binary_not_equal(self):
         """Test parsing not equal comparison."""
-        source = "func main() -> void { a int = 1 != 2; }"
+        source = "func main() -> void { let a int = 1 != 2; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -336,7 +338,7 @@ func bar() -> int { return 1; }"""
 
     def test_binary_and(self):
         """Test parsing logical AND."""
-        source = "func main() -> void { a int = 1 && 2; }"
+        source = "func main() -> void { let a int = 1 && 2; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -345,7 +347,7 @@ func bar() -> int { return 1; }"""
 
     def test_binary_or(self):
         """Test parsing logical OR."""
-        source = "func main() -> void { a int = 1 || 2; }"
+        source = "func main() -> void { let a int = 1 || 2; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -354,7 +356,7 @@ func bar() -> int { return 1; }"""
 
     def test_unary_minus(self):
         """Test parsing unary minus."""
-        source = "func main() -> void { a int = -1; }"
+        source = "func main() -> void { let a int = -1; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -364,7 +366,7 @@ func bar() -> int { return 1; }"""
 
     def test_unary_not(self):
         """Test parsing unary NOT."""
-        source = "func main() -> void { a int = !1; }"
+        source = "func main() -> void { let a int = !1; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -373,7 +375,7 @@ func bar() -> int { return 1; }"""
 
     def test_nested_unary(self):
         """Test parsing nested unary operators."""
-        source = "func main() -> void { a int = --1; }"
+        source = "func main() -> void { let a int = --1; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -384,7 +386,7 @@ func bar() -> int { return 1; }"""
 
     def test_parenthesized_expression(self):
         """Test parsing parenthesized expression."""
-        source = "func main() -> void { a int = (1 + 2); }"
+        source = "func main() -> void { let a int = (1 + 2); }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -393,7 +395,7 @@ func bar() -> int { return 1; }"""
 
     def test_operator_precedence_multiplication_before_addition(self):
         """Test operator precedence: multiplication before addition."""
-        source = "func main() -> void { a int = 1 + 2 * 3; }"
+        source = "func main() -> void { let a int = 1 + 2 * 3; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -406,7 +408,7 @@ func bar() -> int { return 1; }"""
 
     def test_operator_precedence_addition_before_comparison(self):
         """Test operator precedence: addition before comparison."""
-        source = "func main() -> void { a int = 1 + 2 < 10; }"
+        source = "func main() -> void { let a int = 1 + 2 < 10; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -418,7 +420,7 @@ func bar() -> int { return 1; }"""
 
     def test_operator_precedence_comparison_before_logical(self):
         """Test operator precedence: comparison before logical."""
-        source = "func main() -> void { a int = 1 < 2 && 3 > 4; }"
+        source = "func main() -> void { let a int = 1 < 2 && 3 > 4; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -432,7 +434,7 @@ func bar() -> int { return 1; }"""
 
     def test_operator_precedence_logical_and_before_or(self):
         """Test operator precedence: AND before OR."""
-        source = "func main() -> void { a int = 1 || 2 && 3; }"
+        source = "func main() -> void { let a int = 1 || 2 && 3; }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -444,7 +446,7 @@ func bar() -> int { return 1; }"""
 
     def test_function_call_in_expression(self):
         """Test parsing function call in expression."""
-        source = "func main() -> void { a int = foo(1, 2); }"
+        source = "func main() -> void { let a int = foo(1, 2); }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -454,7 +456,7 @@ func bar() -> int { return 1; }"""
 
     def test_complex_expression(self):
         """Test parsing complex expression."""
-        source = "func main() -> void { a int = (1 + 2) * (3 - 4); }"
+        source = "func main() -> void { let a int = (1 + 2) * (3 - 4); }"
         ast = self.parse_source(source)
 
         expr = ast.functions[0].body.statements[0].value
@@ -470,7 +472,7 @@ func bar() -> int { return 1; }"""
         source = """func main() -> void {
     if (a < 10) {
         if (b > 5) {
-            c int = 1;
+            let c int = 1;
         }
     }
 }"""
@@ -485,8 +487,8 @@ func bar() -> int { return 1; }"""
     def test_for_loop_with_statements(self):
         """Test parsing for loop with body statements."""
         source = """func main() -> void {
-    for (i int = 0; i < 10; i = i + 1) {
-        a int = i;
+    for (let i int = 0; i < 10; i = i + 1) {
+        let a int = i;
     }
 }"""
         ast = self.parse_source(source)
@@ -503,15 +505,15 @@ func bar() -> int { return 1; }"""
 }
 
 func main() -> void {
-    a int = 1;
-    b int = 2;
-    c int = add(a, b);
+    let a int = 1;
+    let b int = 2;
+    let c int = add(a, b);
     if (c > 0) {
-        d int = c * 2;
+        let d int = c * 2;
     } else {
-        d int = 0;
+        let d int = 0;
     }
-    for (i int = 0; i < 10; i = i + 1) {
+    for (let i int = 0; i < 10; i = i + 1) {
         a = a + i;
     }
     return;
@@ -583,7 +585,7 @@ func main() -> void {
 
     def test_missing_semicolon(self):
         """Test error when semicolon is missing."""
-        source = "func main() -> void { a int = 1 }"
+        source = "func main() -> void { let a int = 1 }"
         lexer = Lexer(source)
         parser = Parser(lexer)
         with self.assertRaises(ParseError):
@@ -607,7 +609,7 @@ func main() -> void {
 
     def test_missing_for_loop_semicolon(self):
         """Test error when semicolon in for loop is missing."""
-        source = "func main() -> void { for (i int = 0 i < 10; i = i + 1) { } }"
+        source = "func main() -> void { for (let i int = 0 i < 10; i = i + 1) { } }"
         lexer = Lexer(source)
         parser = Parser(lexer)
         with self.assertRaises(ParseError):
@@ -615,7 +617,7 @@ func main() -> void {
 
     def test_missing_for_loop_closing_paren(self):
         """Test error when closing paren in for loop is missing."""
-        source = "func main() -> void { for (i int = 0; i < 10; i = i + 1 { } }"
+        source = "func main() -> void { for (let i int = 0; i < 10; i = i + 1 { } }"
         lexer = Lexer(source)
         parser = Parser(lexer)
         with self.assertRaises(ParseError):
@@ -631,7 +633,7 @@ func main() -> void {
 
     def test_unclosed_parentheses(self):
         """Test error when parentheses are not closed."""
-        source = "func main() -> void { a int = (1 + 2; }"
+        source = "func main() -> void { let a int = (1 + 2; }"
         lexer = Lexer(source)
         parser = Parser(lexer)
         with self.assertRaises(ParseError):
