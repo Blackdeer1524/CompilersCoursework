@@ -206,16 +206,6 @@ func bar() -> int { return 1; }"""
         self.assertIsInstance(stmt.update, Reassignment)
         self.assertEqual(stmt.update.lvalue.name, "i")
 
-    def test_block_statement(self):
-        """Test parsing block statement."""
-        source = "func main() -> void { { let a int = 1; } }"
-        ast = self.parse_source(source)
-
-        stmt = ast.functions[0].body.statements[0]
-        self.assertIsInstance(stmt, Block)
-        self.assertEqual(len(stmt.statements), 1)
-        self.assertIsInstance(stmt.statements[0], Assignment)
-
     # Expression tests
 
     def test_integer_literal(self):

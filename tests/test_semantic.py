@@ -189,15 +189,6 @@ func main() -> void {
 }"""
         self.assert_no_errors(source)
 
-    def test_variable_scope_in_block(self):
-        """Test variable scope in block."""
-        source = """func main() -> void {
-    {
-        let a int = 1;
-    }
-}"""
-        self.assert_no_errors(source)
-
     # Return type errors
 
     def test_return_type_mismatch_void_function(self):
@@ -371,18 +362,6 @@ func main() -> void {
     for {
         let a int = 1;
         let b int = 2;
-    }
-}"""
-        self.assert_no_errors(source)
-
-    def test_block_statements(self):
-        """Test block statements."""
-        source = """func main() -> void {
-    {
-        let a int = 1;
-        {
-            let b int = 2;
-        }
     }
 }"""
         self.assert_no_errors(source)

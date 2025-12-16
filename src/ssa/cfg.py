@@ -472,22 +472,6 @@ class CFGBuilder:
                 self._build_break(stmt)
             case Continue():
                 self._build_continue(stmt)
-            case Block():
-                assert self.cur_block is not None
-
-                old_sym_table = self.cur_block.symbol_table
-
-                bb = self._new_block(unwrap(stmt.symbol_table))
-                self.cur_block.instructions.append(InstUncondJump(bb))
-                self.cur_block.add_child(bb)
-                self._switch_to_block(bb)
-
-                self._build_block(stmt)
-
-                after_block = self._new_block(old_sym_table)
-                self.cur_block.instructions.append(InstUncondJump(after_block))
-                self.cur_block.add_child(after_block)
-                self._switch_to_block(after_block)
 
     def _build_assignment(self, stmt: Assignment):
         assert self.cur_block is not None, "Current block must be set"

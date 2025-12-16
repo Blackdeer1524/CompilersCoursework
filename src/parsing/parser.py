@@ -113,7 +113,7 @@ class Continue(Statement):
 
 
 @dataclass
-class Block(Statement):
+class Block:
     statements: List[Statement]
     symbol_table: Optional["SymbolTable"] = None
 
@@ -319,9 +319,6 @@ class Parser:
             raise ParseError("Unexpected end of file")
 
         token = self.current_token
-
-        if self.check(TokenType.LBRACE):
-            return self.parse_block()
 
         if self.check(TokenType.IF):
             return self.parse_condition()
