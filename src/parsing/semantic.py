@@ -180,23 +180,20 @@ class SemanticAnalyzer:
         self.global_scope = SymbolTable()
         self.current_scope: SymbolTable = self.global_scope
         self.current_function: FunctionInfo | None = None
-        self.loop_depth: int = (
-            0  # Track loop nesting depth for break/continue validation
-        )
+
+        # Track loop nesting depth for break/continue validation
+        self.loop_depth: int = 0
+
         self.errors: list[SemanticError] = []
 
     def analyze(self) -> list[SemanticError]:
         """Perform semantic analysis and return list of errors."""
         self.errors = []
-
-        # Attach global symbol table to Program
         self.program.symbol_table = self.global_scope
 
-        # First pass: collect all function declarations
         for func in self.program.functions:
             self._collect_function(func)
 
-        # Second pass: analyze function bodies
         for func in self.program.functions:
             self._analyze_function(func)
 
@@ -222,11 +219,9 @@ class SemanticAnalyzer:
             self.errors.append(e)
 
     def _analyze_function(self, func: Function):
-        # Create new scope for function and attach to function body Block
         func.body.symbol_table = SymbolTable(parent=self.global_scope)
         self.current_scope = func.body.symbol_table
 
-        # Look up function info
         func_info = self.global_scope.lookup_function(func.name)
         if not func_info:
             self.errors.append(
@@ -240,7 +235,6 @@ class SemanticAnalyzer:
 
         self.current_function = func_info
 
-        # Add parameters to function scope
         for arg in func.args:
             try:
                 arg_type = Type.from_string(arg.type)
@@ -250,11 +244,9 @@ class SemanticAnalyzer:
             except SemanticError as e:
                 self.errors.append(e)
 
-        # Function body uses function's scope (no new Block scope)
         for statement in func.body.statements:
             self._analyze_statement(statement)
 
-        # Restore scope
         self.current_scope = self.global_scope
         self.current_function = None
 
@@ -288,12 +280,18 @@ class SemanticAnalyzer:
                 )
 
     def _analyze_assignment(self, stmt: Assignment):
-        # Convert string type to Type object
+        if self.current_scope.lookup_variable(stmt.name) is not None:
+            self.errors.append(
+                SemanticError(
+                    f"the var {stmt.name} has already been defined",
+                    stmt.line,
+                    stmt.column,
+                )
+            )
+
         var_type = Type.from_string(stmt.type)
 
-        # Check for array initialization
         if isinstance(stmt.value, ArrayInit):
-            # Array initialization with {} is only allowed for array types
             if not var_type.is_array():
                 self.errors.append(
                     SemanticError(
@@ -302,7 +300,6 @@ class SemanticAnalyzer:
                         stmt.column,
                     )
                 )
-                # Still declare the variable for error recovery
                 try:
                     self.current_scope.declare_variable(
                         stmt.name, var_type, stmt.line, stmt.column
@@ -311,8 +308,6 @@ class SemanticAnalyzer:
                     self.errors.append(e)
                 return
 
-            # Array initialization with {} is allowed for array types
-            # Declare variable in current scope
             try:
                 self.current_scope.declare_variable(
                     stmt.name, var_type, stmt.line, stmt.column
@@ -321,10 +316,8 @@ class SemanticAnalyzer:
                 self.errors.append(e)
             return
 
-        # Check that value type matches declared type
         value_type = self._analyze_expression(stmt.value)
 
-        # Forbid array-to-array assignment
         if (
             var_type.is_array()
             and isinstance(value_type, Type)
@@ -337,7 +330,6 @@ class SemanticAnalyzer:
                     stmt.column,
                 )
             )
-            # Still declare the variable for error recovery
             try:
                 self.current_scope.declare_variable(
                     stmt.name, var_type, stmt.line, stmt.column
@@ -346,7 +338,6 @@ class SemanticAnalyzer:
                 self.errors.append(e)
             return
 
-        # Type checking for non-array assignments
         if value_type != var_type:
             self.errors.append(
                 SemanticError(
@@ -356,7 +347,6 @@ class SemanticAnalyzer:
                 )
             )
 
-        # Declare variable in current scope
         try:
             self.current_scope.declare_variable(
                 stmt.name, var_type, stmt.line, stmt.column
@@ -365,12 +355,10 @@ class SemanticAnalyzer:
             self.errors.append(e)
 
     def _analyze_reassignment(self, stmt: Reassignment):
-        # Analyze the lvalue to get the target type
         target_type = self._analyze_lvalue(stmt.lvalue)
         if target_type is None:
             return  # Error already reported
 
-        # Check that value type matches target type
         value_type = self._analyze_expression(stmt.value)
 
         # Forbid array-to-array assignment (but allow array element assignment)
@@ -412,7 +400,6 @@ class SemanticAnalyzer:
                     return None
                 return var_type
             case LValueArrayAccess():
-                # Look up the base array variable
                 base_type = self.current_scope.lookup_variable(lvalue.base)
                 if base_type is None:
                     line = getattr(lvalue, "line", 0)
@@ -436,7 +423,6 @@ class SemanticAnalyzer:
                     )
                     return None
 
-                # Check that number of indices matches number of dimensions
                 if len(lvalue.indices) != len(base_type.dimensions):
                     line = getattr(lvalue, "line", 0)
                     column = getattr(lvalue, "column", 0)
@@ -447,9 +433,7 @@ class SemanticAnalyzer:
                             column,
                         )
                     )
-                    return Type(
-                        base_type.base_type
-                    )  # Return base type for error recovery
+                    return Type(base_type.base_type)  # error recovery
 
                 # Check that each index is int
                 for idx in lvalue.indices:
@@ -463,7 +447,6 @@ class SemanticAnalyzer:
                             )
                         )
 
-                # Return the base element type
                 return Type(base_type.base_type)
             case _:
                 line = getattr(lvalue, "line", 0)
@@ -476,7 +459,6 @@ class SemanticAnalyzer:
                 return None
 
     def _analyze_condition(self, stmt: Condition):
-        # Condition should be boolean (int in this language)
         cond_type = self._analyze_expression(stmt.condition)
         if cond_type != Type("int"):
             self.errors.append(
@@ -487,7 +469,6 @@ class SemanticAnalyzer:
                 )
             )
 
-        # Analyze then block with new scope and attach to Block node
         old_scope = self.current_scope
         stmt.then_block.symbol_table = SymbolTable(parent=old_scope)
         self.current_scope = stmt.then_block.symbol_table
@@ -495,7 +476,6 @@ class SemanticAnalyzer:
             self._analyze_statement(s)
         self.current_scope = old_scope
 
-        # Analyze else block if present with new scope and attach to Block node
         if stmt.else_block:
             stmt.else_block.symbol_table = SymbolTable(parent=old_scope)
             self.current_scope = stmt.else_block.symbol_table
@@ -509,13 +489,9 @@ class SemanticAnalyzer:
         stmt.body.symbol_table = SymbolTable(parent=old_scope)
         self.current_scope = stmt.body.symbol_table
 
-        # Increment loop depth for break/continue validation
         self.loop_depth += 1
-
-        # Analyze init
         self._analyze_assignment(stmt.init)
 
-        # Analyze condition
         cond_type = self._analyze_expression(stmt.condition)
         if cond_type != Type("int"):
             self.errors.append(
@@ -526,33 +502,21 @@ class SemanticAnalyzer:
                 )
             )
 
-        # Analyze update
         self._analyze_reassignment(stmt.update)
 
-        # Analyze body (which is now a Block)
         for s in stmt.body.statements:
             self._analyze_statement(s)
 
-        # Decrement loop depth
         self.loop_depth -= 1
-
-        # Restore scope
         self.current_scope = old_scope
 
     def _analyze_unconditional_loop(self, stmt: UnconditionalLoop):
-        # Create new scope for loop and attach to body Block
         old_scope = self.current_scope
 
-        # Increment loop depth for break/continue validation
         self.loop_depth += 1
-
-        # Analyze body (which is now a Block)
         self._analyze_block(stmt.body)
-
-        # Decrement loop depth
         self.loop_depth -= 1
 
-        # Restore scope
         self.current_scope = old_scope
 
     def _analyze_function_call_stmt(self, stmt: FunctionCall):
@@ -568,7 +532,6 @@ class SemanticAnalyzer:
             return
 
         if stmt.value is None:
-            # No return value
             if self.current_function.return_type != Type("void"):
                 self.errors.append(
                     SemanticError(
@@ -578,7 +541,6 @@ class SemanticAnalyzer:
                     )
                 )
         else:
-            # Has return value
             if self.current_function.return_type == Type("void"):
                 self.errors.append(
                     SemanticError(
@@ -616,7 +578,6 @@ class SemanticAnalyzer:
             )
 
     def _analyze_block(self, stmt: Block):
-        # Create new scope for block and attach to AST node
         old_scope = self.current_scope
         stmt.symbol_table = SymbolTable(parent=old_scope)
         self.current_scope = stmt.symbol_table
@@ -624,7 +585,6 @@ class SemanticAnalyzer:
         for s in stmt.statements:
             self._analyze_statement(s)
 
-        # Restore scope
         self.current_scope = old_scope
 
     def _analyze_expression(self, expr: Expression) -> Type:
@@ -633,25 +593,22 @@ class SemanticAnalyzer:
                 return Type("int")
             case Identifier():
                 var_type = self.current_scope.lookup_variable(expr.name)
-                if var_type is None:
-                    # Try to get line/column from current function or use defaults
-                    line = self.current_function.line if self.current_function else 0
-                    column = (
-                        self.current_function.column if self.current_function else 0
+                if var_type is not None:
+                    return var_type
+                line = self.current_function.line if self.current_function else 0
+                column = self.current_function.column if self.current_function else 0
+                self.errors.append(
+                    SemanticError(
+                        f"Variable '{expr.name}' is not declared", line, column
                     )
-                    self.errors.append(
-                        SemanticError(
-                            f"Variable '{expr.name}' is not declared", line, column
-                        )
-                    )
-                    return Type("int")  # Default to int for error recovery
-                return var_type
+                )
+                return Type("int")  # Default to int for error recovery
             case ArrayAccess():
                 return self._analyze_array_access(expr)
             case ArrayInit():
                 # ArrayInit should only appear in assignments, and type is determined there
                 # Return a placeholder - this shouldn't be reached in normal flow
-                return Type("int")  # Placeholder
+                return Type("int")
             case BinaryOp():
                 return self._analyze_binary_op(expr)
             case UnaryOp():
@@ -667,7 +624,6 @@ class SemanticAnalyzer:
                 return Type("int")  # Default to int for error recovery
 
     def _analyze_array_access(self, expr: ArrayAccess) -> Type:
-        # Analyze the base expression
         base_type = self._analyze_expression(expr.base)
 
         if not isinstance(base_type, Type):
@@ -684,7 +640,6 @@ class SemanticAnalyzer:
             )
             return Type("int")  # Error recovery
 
-        # Check that number of indices matches number of dimensions
         if len(expr.indices) != len(base_type.dimensions):
             self.errors.append(
                 SemanticError(
@@ -695,7 +650,6 @@ class SemanticAnalyzer:
             )
             return Type(base_type.base_type)  # Return base type for error recovery
 
-        # Check that each index is int
         for idx in expr.indices:
             idx_type = self._analyze_expression(idx)
             if idx_type != Type("int"):
@@ -714,8 +668,6 @@ class SemanticAnalyzer:
         left_type = self._analyze_expression(expr.left)
         right_type = self._analyze_expression(expr.right)
 
-        # All operations in this language return int
-        # But we should check that operands are int
         if left_type != Type("int"):
             self.errors.append(
                 SemanticError(
@@ -751,7 +703,6 @@ class SemanticAnalyzer:
         return Type("int")
 
     def _analyze_call_expression(self, expr: CallExpression) -> Type:
-        # Try to get line/column from current function or use defaults
         line = self.current_function.line if self.current_function else 0
         column = self.current_function.column if self.current_function else 0
         func_info = self._check_function_call(expr.name, expr.args, line, column)
@@ -763,7 +714,6 @@ class SemanticAnalyzer:
         self, name: str, args: list[Expression], line: int, column: int
     ) -> FunctionInfo | None:
         """Check that a function call is valid."""
-        # Look up function
         func_info = self.current_scope.lookup_function(name)
         if func_info is None:
             self.errors.append(
@@ -771,7 +721,6 @@ class SemanticAnalyzer:
             )
             return None
 
-        # Check argument count
         if len(args) != len(func_info.params):
             self.errors.append(
                 SemanticError(
@@ -782,7 +731,6 @@ class SemanticAnalyzer:
             )
             return func_info
 
-        # Check argument types
         for i, (arg_expr, (param_name, param_type)) in enumerate(
             zip(args, func_info.params)
         ):
@@ -796,16 +744,13 @@ class SemanticAnalyzer:
                     )
                 )
 
-        # Check for duplicate array variable arguments
         array_vars_seen: dict[str, int] = {}  # variable name -> argument index
         for i, (arg_expr, (param_name, param_type)) in enumerate(
             zip(args, func_info.params)
         ):
-            # Only check direct variable references (Identifier), not array element accesses
             if isinstance(arg_expr, Identifier):
                 var_name = arg_expr.name
                 arg_type = self._analyze_expression(arg_expr)
-                # Check if this is an array type
                 if isinstance(arg_type, Type) and arg_type.is_array():
                     if var_name in array_vars_seen:
                         self.errors.append(
@@ -822,7 +767,6 @@ class SemanticAnalyzer:
 
 
 if __name__ == "__main__":
-    # Test the semantic analyzer
     from .lexer import Lexer
     from .parser import Parser
 

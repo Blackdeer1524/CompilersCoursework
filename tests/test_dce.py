@@ -652,52 +652,6 @@ class TestDCE(base.TestBase):
 
         self.assert_ir(src, expected_ir)
 
-    def test_array_with_hard_branches_dce(self):
-        src = """
-        func main() -> void {
-            let a [4][4]int = {};  // dead code
-            if (1) {
-                a[0][0] = 1; // dead code
-                let a[5][5]int = {};
-                a[1][1] = 2;
-                foo_5_5(a);
-            }
-        }
-        
-        func foo_5_5(x [5][5]int) -> void {
-        }
-        """
-
-        expected_ir = textwrap.dedent("""
-            ; pred: []
-            BB0: ; [entry]
-                cmp(1, 1)
-                if CF == 1 then jmp BB2 else jmp BB3
-            ; succ: [BB3, BB2]
-
-            ; pred: [BB0]
-            BB2: ; [then]
-                (<~)a_v2 = array_init([5][5])
-                %9_v1 = 1 * 4
-                %11_v1 = 1 * 1
-                %12_v1 = %9_v1 + %11_v1
-                (a_v2<~)%13_v1 = (<~)a_v2 + %12_v1
-                Store((a_v2<~)%13_v1, 2)
-                %15_v1 = foo_5_5((<~)a_v2)
-                jmp BB3
-            ; succ: [BB3]
-
-            ; pred: [BB0, BB2]
-            BB3: ; [merge]
-            ; succ: [BB1]
-
-            ; pred: [BB3]
-            BB1: ; [exit]
-            ; succ: []
-        """).strip()
-
-        self.assert_ir(src, expected_ir)
-
     def test_array_dce_loop(self):
         src = """
         func main() -> void {

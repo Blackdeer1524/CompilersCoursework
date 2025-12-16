@@ -280,7 +280,6 @@ class Parser:
 
     def parse_type(self) -> str:
         """TYPE ::= int | ("[" INTEGER "]")+ int | void"""
-        # Parse array dimensions
         dimensions = []
         while self.check(TokenType.LBRACKET):
             self.advance()  # consume '['
@@ -292,7 +291,6 @@ class Parser:
             dimensions.append(int(dim_token.value))
             self.expect(TokenType.RBRACKET)  # consume ']'
 
-        # Parse base type
         if self.check(TokenType.INT):
             self.advance()
             base_type = "int"
@@ -302,7 +300,6 @@ class Parser:
         else:
             raise ParseError("Expected 'int' or 'void'", self.current_token)
 
-        # Build type string
         if dimensions:
             dims_str = "".join(f"[{d}]" for d in dimensions)
             return f"{dims_str}{base_type}"
@@ -323,51 +320,38 @@ class Parser:
 
         token = self.current_token
 
-        # BLOCK
         if self.check(TokenType.LBRACE):
             return self.parse_block()
 
-        # CONDITION
         if self.check(TokenType.IF):
             return self.parse_condition()
 
-        # LOOP
         if self.check(TokenType.FOR):
             return self.parse_loop()
 
-        # RETURN
         if self.check(TokenType.RETURN):
             return self.parse_return()
 
-        # BREAK
         if self.check(TokenType.BREAK):
             return self.parse_break()
 
-        # CONTINUE
         if self.check(TokenType.CONTINUE):
             return self.parse_continue()
 
-        # ASSIGNMENT (starts with "let")
         if self.check(TokenType.LET):
             return self.parse_assignment()
 
-        # REASSIGNMENT or FUNCTION_CALL
         if self.check(TokenType.IDENTIFIER):
-            # Peek ahead to distinguish between reassignment and function call
             if self.pos + 1 < len(self.tokens):
                 next_token = self.tokens[self.pos + 1]
 
-                # FUNCTION_CALL: identifier ( ...
                 if next_token.type == TokenType.LPAREN:
                     call = self.parse_function_call()
                     self.expect(TokenType.SEMICOLON)
                     return call
-                # REASSIGNMENT: identifier = ... or identifier[...] = ...
                 elif next_token.type == TokenType.ASSIGN:
                     return self.parse_reassignment()
-                # REASSIGNMENT: identifier[...] = ... (array element assignment)
                 elif next_token.type == TokenType.LBRACKET:
-                    # Look ahead to see if this is array access followed by =
                     peek_pos = self.pos + 1
                     bracket_count = 0
                     found_assign = False
@@ -390,8 +374,6 @@ class Parser:
 
                     if found_assign:
                         return self.parse_reassignment()
-                    # Otherwise, this is an array access in expression context
-                    # which shouldn't appear as a statement, but let it fall through to error
 
         raise ParseError(f"Unexpected token: {token.type.name}", token)
 
@@ -478,14 +460,12 @@ class Parser:
         line = for_token.line
         column = for_token.column
 
-        # Unconditional loop: for BLOCK
         if self.check(TokenType.LBRACE):
             body = self.parse_block()
             return UnconditionalLoop(body, line, column)
 
-        # for loop: for (ASSIGNMENT; EXPR; REASSIGNMENT) BLOCK
         self.expect(TokenType.LPAREN)
-        init = self.parse_assignment()  # This already consumes the semicolon
+        init = self.parse_assignment()  # this already consumes the semicolon
         condition = self.parse_expr()
         self.expect(TokenType.SEMICOLON)
         update = self.parse_reassignment(
@@ -660,7 +640,6 @@ class Parser:
                 token = self.expect(TokenType.IDENTIFIER)
                 base = Identifier(token.value)
 
-                # Check for array indexing: [expr][expr]...
                 indices = []
                 while self.check(TokenType.LBRACKET):
                     self.advance()  # consume '['
@@ -682,7 +661,6 @@ class Parser:
 
 
 if __name__ == "__main__":
-    # Test the parser
     test_code = """func main() -> void {
     a int = 1;
     b int = 2 + (-a);
