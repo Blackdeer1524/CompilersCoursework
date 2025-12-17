@@ -378,32 +378,6 @@ class CFGBuilder:
         self.tmp_var_counter += 1
         return name
 
-    def _lookup_variable_type(self, name: str) -> Type | None:
-        """Look up a variable's type from the symbol table."""
-        if not self.program or not self.program.symbol_table:
-            return None
-
-        # Search through scopes starting from current function's body
-        def search_scope(scope):
-            if hasattr(scope, "variables") and name in scope.variables:
-                return scope.variables[name]
-            if hasattr(scope, "parent") and scope.parent:
-                return search_scope(scope.parent)
-            return None
-
-        # Start from function body's symbol table if available
-        if self.current_function and hasattr(
-            self.current_function.body, "symbol_table"
-        ):
-            result = search_scope(self.current_function.body.symbol_table)
-            if result:
-                return result
-
-        # Fall back to global scope
-        if self.program.symbol_table:
-            return search_scope(self.program.symbol_table)
-        return None
-
     def _new_block(
         self, symbol_table: SymbolTable, meta: Optional[str] = None
     ) -> BasicBlock:
@@ -533,7 +507,7 @@ class CFGBuilder:
         base_val = self._build_subexpression(expr.base, self._get_tmp_var())
 
         assert isinstance(expr.base, Identifier)
-        array_type = unwrap(self._lookup_variable_type(expr.base.name))
+        array_type = unwrap(self.cur_block.symbol_table.lookup_variable(expr.base.name))
         assert array_type.is_array()
 
         dimensions = array_type.dimensions
@@ -599,7 +573,7 @@ class CFGBuilder:
         """Build array element assignment: arr[i][j] = value."""
         assert self.cur_block is not None, "Current block must be set"
 
-        array_type = unwrap(self._lookup_variable_type(lvalue.base))
+        array_type = unwrap(self.cur_block.symbol_table.lookup_variable(lvalue.base))
         assert array_type.is_array()
 
         dimensions = array_type.dimensions
