@@ -502,6 +502,49 @@ class TestDCE(base.TestBase):
 
         self.assert_ir(src, expected_ir)
 
+    def test_live_array(self):
+        src = """
+        func main() -> int {
+            let arr [10]int = {};
+            if (1) {
+                // not dead!
+                arr[0] = 1;  
+            } 
+            return arr[1];
+        }
+        """
+
+        expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                (<~)arr_v1 = array_init([10])
+                cmp(1, 1)
+                if CF == 1 then jmp BB2 else jmp BB3
+            ; succ: [BB3, BB2]
+
+            ; pred: [BB0]
+            BB2: ; [then]
+                %2_v1 = 0 * 1
+                (arr_v1<~)%3_v1 = (<~)arr_v1 + %2_v1
+                Store((arr_v1<~)%3_v1, 1)
+                jmp BB3
+            ; succ: [BB3]
+
+            ; pred: [BB0, BB2]
+            BB3: ; [merge]
+                %8_v1 = 1 * 1
+                (arr_v1<~)%9_v1 = (<~)arr_v1 + %8_v1
+                %5_v1 = Load((arr_v1<~)%9_v1)
+                return(%5_v1)
+            ; succ: [BB1]
+
+            ; pred: [BB3]
+            BB1: ; [exit]
+            ; succ: []
+        """).strip()
+
+        self.assert_ir(src, expected_ir)
+
     def test_dead_array_in_conditional_(self):
         src = """
         func main() -> int {
@@ -512,7 +555,6 @@ class TestDCE(base.TestBase):
                 let y int = arr[0];
             } else {
                 arr[10] = 100;
-
             }
             return 0;
         }
@@ -1000,5 +1042,60 @@ class TestDCE(base.TestBase):
             BB4: ; [uncond loop update]
                 jmp BB3
             ; succ: [BB3] """).strip()
+
+        self.assert_ir(src, expected_ir)
+        
+    def test_continuous_simple(self):
+        src = """
+        func main() -> int {
+            let a [10]int = {};
+            
+            a[0] = 1;
+            foo(a);
+            
+            a[2] = 3;
+            foo(a);
+            
+            a[2] = 3; // dead
+            return 0;
+        }
+
+        func foo (a [10]int) -> void {
+        }
+        """
+
+        expected_ir = textwrap.dedent("""
+        """).strip()
+
+        self.assert_ir(src, expected_ir)
+
+    def test_continuous(self):
+        src = """
+        func main() -> int {
+            let a [10]int = {};
+            let b [10]int = {};
+            
+            a[0] = 1;
+            foo(a);
+            
+            a[5] = 6; 
+
+            b[3] = 4;
+            foo(b);
+            b[4] = 1; // dead
+
+            a[2] = 3;
+            foo(a);
+            
+            a[2] = 3; // dead
+            return 0;
+        }
+
+        func foo (a [10]int) -> void {
+        }
+        """
+
+        expected_ir = textwrap.dedent("""
+        """).strip()
 
         self.assert_ir(src, expected_ir)
