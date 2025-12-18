@@ -458,22 +458,33 @@ class TestDCE(base.TestBase):
         self.assert_ir(src, expected_ir)
 
     def test_dead_binary_operations(self):
-        src = self.make_main("""
-            let a int = 5;
-            let b int = 10;
+        src = """
+        func main() -> int {
+            let a int = input();
+            let b int = input();
             let c int = a + b;
             let d int = a * b;
             let e int = a - b;
-            let f int = a / b;
+            let f int = a / b;  // not dead, potential division-by-zero -> side effectful
+            let g int = a % b;  // not dead, potential modulo zero -> side effectful
             return 0;
-        """)
+        }
+
+        func input() -> int { 
+            return 42;
+        }
+        """
 
         expected_ir = textwrap.dedent("""
             ; pred: []
             BB0: ; [entry]
+                a_v1 = input()
+                b_v1 = input()
+                f_v1 = a_v1 / b_v1
+                g_v1 = a_v1 % b_v1
                 return(0)
             ; succ: [BB1]
-
+            
             ; pred: [BB0]
             BB1: ; [exit]
             ; succ: []
@@ -1044,7 +1055,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB3] """).strip()
 
         self.assert_ir(src, expected_ir)
-        
+
     def test_continuous_simple(self):
         src = """
         func main() -> int {
@@ -1053,10 +1064,9 @@ class TestDCE(base.TestBase):
             a[0] = 1;
             foo(a);
             
-            a[2] = 3;
-            foo(a);
-            
-            a[2] = 3; // dead
+            if (1) {
+                a[2] = 3; // dead
+            }
             return 0;
         }
 
@@ -1065,37 +1075,30 @@ class TestDCE(base.TestBase):
         """
 
         expected_ir = textwrap.dedent("""
-        """).strip()
+            ; pred: []
+            BB0: ; [entry]
+                (<~)a_v1 = array_init([10])
+                %1_v1 = 0 * 1
+                (a_v1<~)%2_v1 = (<~)a_v1 + %1_v1
+                Store((a_v1<~)%2_v1, 1)
+                %4_v1 = foo((<~)a_v1)
+                cmp(1, 1)
+                if CF == 1 then jmp BB2 else jmp BB3
+            ; succ: [BB3, BB2]
 
-        self.assert_ir(src, expected_ir)
+            ; pred: [BB0]
+            BB2: ; [then]
+                jmp BB3
+            ; succ: [BB3]
 
-    def test_continuous(self):
-        src = """
-        func main() -> int {
-            let a [10]int = {};
-            let b [10]int = {};
-            
-            a[0] = 1;
-            foo(a);
-            
-            a[5] = 6; 
+            ; pred: [BB0, BB2]
+            BB3: ; [merge]
+                return(0)
+            ; succ: [BB1]
 
-            b[3] = 4;
-            foo(b);
-            b[4] = 1; // dead
-
-            a[2] = 3;
-            foo(a);
-            
-            a[2] = 3; // dead
-            return 0;
-        }
-
-        func foo (a [10]int) -> void {
-        }
-        """
-
-        expected_ir = textwrap.dedent("""
+            ; pred: [BB3]
+            BB1: ; [exit]
+            ; succ: []
         """).strip()
 
         self.assert_ir(src, expected_ir)

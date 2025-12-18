@@ -19,6 +19,7 @@ from src.ssa.cfg import (
     OpBinary,
     OpUnary,
     OpCall,
+    SSAConstant,
     SSAValue,
     SSAVariable,
 )
@@ -140,6 +141,7 @@ class DCE(OptimizationPass):
                     dead_end = True
                     break
 
+                key = (inst.dst_address.name, unwrap(inst.dst_address.version))
                 self.live_insts.add(inst)
                 if key not in self.live_vars:
                     self.live_vars.add(key)
@@ -167,7 +169,7 @@ class DCE(OptimizationPass):
         key = (val.name, unwrap(val.version))
         if val.base_pointer is not None:
             self._mark_pointer_chain(bb, val, inst_idx, var_work)
-        
+
         if key in self.live_vars:
             return
 
@@ -185,11 +187,17 @@ class DCE(OptimizationPass):
                             self.live_insts.add(inst)
                             self._mark_pointer_chain(cfg.exit, lhs, -1, var_work)
                     case InstAssign(_, rhs):
-                        if isinstance(rhs, OpCall):
-                            # Treat calls as side-effectful roots
-                            self.live_insts.add(inst)
-                            for arg in rhs.args:
-                                self.mark_value_live(bb, i, arg, var_work)
+                        match rhs:
+                            case OpBinary("/" | "%", _, SSAVariable() | SSAConstant(0)):
+                                # division-by-zero or modulo zero, which is side-effectful -> can't remove
+                                self.live_insts.add(inst)
+                                self.mark_value_live(bb, i, rhs.left, var_work)
+                                self.mark_value_live(bb, i, rhs.right, var_work)
+                            case OpCall():
+                                # Treat calls as side-effectful roots
+                                self.live_insts.add(inst)
+                                for arg in rhs.args:
+                                    self.mark_value_live(bb, i, arg, var_work)
                     case InstReturn(value):
                         self.live_insts.add(inst)
                         if value is not None:

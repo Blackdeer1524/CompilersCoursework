@@ -40,7 +40,7 @@ class SSAValue(ABC): ...
 @dataclass
 class SSAVariable(SSAValue):
     name: str
-    base_pointer: Optional[tuple[str, int]] = field(default=None)
+    base_pointer: Optional[tuple[str, int]] = field(default=None, compare=False)
     version: int | None = field(default=None)
 
     def __repr__(self):
@@ -58,6 +58,9 @@ class SSAVariable(SSAValue):
         if self.version is not None:
             res += f"_v{self.version}"
         return res
+
+    def as_tuple(self):
+        return (self.name, unwrap(self.version))
 
 
 @dataclass
@@ -329,7 +332,7 @@ class CFG:
         dominance_frontier: dict["BasicBlock", set["BasicBlock"]],
     ):
         res = f"digraph {self.name} {{\n"
-        res += "rankdir = LR;\n"
+        res += "rankdir = TD;\n"
         res += "node [shape=box]\n"
 
         for bb in self:
@@ -340,7 +343,7 @@ class CFG:
             for succ in bb.succ:
                 res += (
                     f'"{bb.label}" -> "{succ.label}" '
-                    + '[headport="w", tailport="e", penwidth=3, '
+                    + '[headport="n", tailport="s", penwidth=3, '
                     + f'color="{bb_colors[succ.label]};0.5:{bb_colors[bb.label]}"]\n'
                 )
 

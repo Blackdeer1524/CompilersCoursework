@@ -233,6 +233,7 @@ class Parser:
         PROGRAMM ::= FUNCTION+ EOF
         """
         functions = []
+        functions.append(self.parse_function())
         while self.current_token and self.current_token.type != TokenType.EOF:
             functions.append(self.parse_function())
         return Program(functions)
