@@ -45,7 +45,7 @@ func main() -> void {
 ## Грамматика
 
 ```
-PROGRAMM ::= FUNCTION+
+PROGRAMM ::= FUNCTION* EOF
 
 FUNCTION ::= func IDENTIFIER "(" ARG_LIST ")" "->" TYPE "{" BLOCK "}"
 
