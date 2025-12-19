@@ -49,7 +49,7 @@ class TestDCE(base.TestBase):
                 i_v1 = 0
                 %0_v1 = i_v1 < 10
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB7 else jmp BB3
+                if CF == 0 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
 
             ; pred: [BB2, BB6]
@@ -78,7 +78,7 @@ class TestDCE(base.TestBase):
                 i_v3 = i_v2 + 1
                 %7_v1 = i_v3 < 10
                 cmp(%7_v1, 0)
-                if CF == 1 then jmp BB6 else jmp BB4
+                if CF == 0 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
             ; pred: [BB5]
@@ -106,7 +106,7 @@ class TestDCE(base.TestBase):
                 a_v1 = 1
                 %0_v1 = a_v1 == 1
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB3 else jmp BB2
+                if CF == 0 then jmp BB2 else jmp BB3
             ; succ: [BB3, BB2]
 
             ; pred: [BB0]
@@ -226,7 +226,7 @@ class TestDCE(base.TestBase):
                 a_v1 = 0
                 %0_v1 = a_v1 == 0
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB4 else jmp BB2
+                if CF == 0 then jmp BB2 else jmp BB4
             ; succ: [BB4, BB2]
 
             ; pred: [BB0]
@@ -273,7 +273,7 @@ class TestDCE(base.TestBase):
                 i_v1 = 0
                 %0_v1 = i_v1 < 10
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB7 else jmp BB3
+                if CF == 0 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
 
             ; pred: [BB2, BB6]
@@ -302,7 +302,7 @@ class TestDCE(base.TestBase):
                 j_v1 = 0
                 %3_v1 = j_v1 < 10
                 cmp(%3_v1, 0)
-                if CF == 1 then jmp BB13 else jmp BB9
+                if CF == 0 then jmp BB9 else jmp BB13
             ; succ: [BB9, BB13]
 
             ; pred: [BB8, BB12]
@@ -315,7 +315,7 @@ class TestDCE(base.TestBase):
                 i_v3 = i_v2 + 1
                 %15_v1 = i_v3 < 10
                 cmp(%15_v1, 0)
-                if CF == 1 then jmp BB6 else jmp BB4
+                if CF == 0 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
             ; pred: [BB5]
@@ -340,7 +340,7 @@ class TestDCE(base.TestBase):
                 j_v3 = j_v2 + 1
                 %10_v1 = j_v3 < 10
                 cmp(%10_v1, 0)
-                if CF == 1 then jmp BB12 else jmp BB10
+                if CF == 0 then jmp BB10 else jmp BB12
             ; succ: [BB10, BB12]
 
             ; pred: [BB11]
@@ -417,7 +417,7 @@ class TestDCE(base.TestBase):
                 i_v1 = 0
                 %0_v1 = i_v1 < 10
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB7 else jmp BB3
+                if CF == 0 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
 
             ; pred: [BB2, BB6]
@@ -446,7 +446,7 @@ class TestDCE(base.TestBase):
                 i_v3 = i_v2 + 1
                 %7_v1 = i_v3 < 10
                 cmp(%7_v1, 0)
-                if CF == 1 then jmp BB6 else jmp BB4
+                if CF == 0 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
             ; pred: [BB5]
@@ -530,7 +530,7 @@ class TestDCE(base.TestBase):
             BB0: ; [entry]
                 (<~)arr_v1 = array_init([10])
                 cmp(1, 0)
-                if CF == 1 then jmp BB3 else jmp BB2
+                if CF == 0 then jmp BB2 else jmp BB3
             ; succ: [BB3, BB2]
 
             ; pred: [BB0]
@@ -577,7 +577,7 @@ class TestDCE(base.TestBase):
                 x_v1 = 0
                 %0_v1 = x_v1 == 0
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB4 else jmp BB2
+                if CF == 0 then jmp BB2 else jmp BB4
             ; succ: [BB4, BB2]
 
             ; pred: [BB0]
@@ -620,7 +620,7 @@ class TestDCE(base.TestBase):
                 a_v1 = 1
                 %0_v1 = a_v1 == 1
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB4 else jmp BB2
+                if CF == 0 then jmp BB2 else jmp BB4
             ; succ: [BB4, BB2]
 
             ; pred: [BB0]
@@ -665,7 +665,7 @@ class TestDCE(base.TestBase):
                 i_v1 = 0
                 %0_v1 = i_v1 < 10
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB7 else jmp BB3
+                if CF == 0 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
 
             ; pred: [BB2, BB6]
@@ -694,7 +694,7 @@ class TestDCE(base.TestBase):
                 i_v3 = i_v2 + 1
                 %7_v1 = i_v3 < 10
                 cmp(%7_v1, 0)
-                if CF == 1 then jmp BB6 else jmp BB4
+                if CF == 0 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
             ; pred: [BB5]
@@ -732,7 +732,7 @@ class TestDCE(base.TestBase):
                 i_v1 = 0
                 %0_v1 = i_v1 < 10
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB7 else jmp BB3
+                if CF == 0 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
 
             ; pred: [BB2, BB6]
@@ -768,7 +768,7 @@ class TestDCE(base.TestBase):
                 i_v3 = i_v2 + 1
                 %17_v1 = i_v3 < 10
                 cmp(%17_v1, 0)
-                if CF == 1 then jmp BB6 else jmp BB4
+                if CF == 0 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
             ; pred: [BB5]
@@ -851,7 +851,7 @@ class TestDCE(base.TestBase):
                 %0_v1 = foo((<~)a_v1)
                 %2_v1 = bar()
                 cmp(%2_v1, 0)
-                if CF == 1 then jmp BB8 else jmp BB7
+                if CF == 0 then jmp BB7 else jmp BB8
             ; succ: [BB8, BB7]
 
             ; pred: [BB3]
@@ -869,7 +869,7 @@ class TestDCE(base.TestBase):
                 %8_v1 = Load((a_v1<~)%12_v1)
                 %7_v1 = %8_v1 == 2
                 cmp(%7_v1, 0)
-                if CF == 1 then jmp BB10 else jmp BB9
+                if CF == 0 then jmp BB9 else jmp BB10
             ; succ: [BB10, BB9]
 
             ; pred: [BB8]
@@ -943,7 +943,7 @@ class TestDCE(base.TestBase):
                 %0_v1 = foo((<~)a_v1)
                 %2_v1 = bar()
                 cmp(%2_v1, 0)
-                if CF == 1 then jmp BB8 else jmp BB7
+                if CF == 0 then jmp BB7 else jmp BB8
             ; succ: [BB8, BB7]
 
             ; pred: [BB3]
@@ -1022,7 +1022,7 @@ class TestDCE(base.TestBase):
                 Store((a_v1<~)%4_v1, 4)
                 %6_v1 = bar()
                 cmp(%6_v1, 0)
-                if CF == 1 then jmp BB8 else jmp BB7
+                if CF == 0 then jmp BB7 else jmp BB8
             ; succ: [BB8, BB7]
 
             ; pred: [BB3]
@@ -1083,7 +1083,7 @@ class TestDCE(base.TestBase):
                 Store((a_v1<~)%2_v1, 1)
                 %4_v1 = foo((<~)a_v1)
                 cmp(1, 0)
-                if CF == 1 then jmp BB3 else jmp BB2
+                if CF == 0 then jmp BB2 else jmp BB3
             ; succ: [BB3, BB2]
 
             ; pred: [BB0]

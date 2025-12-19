@@ -136,7 +136,7 @@ class InstCmp(Instruction):
 
     def to_IR(self):
         ir = f"cmp({self.left}, {self.right})\n"
-        ir += f"if CF == 1 then jmp {self.then_block.label} else jmp {self.else_block.label}"
+        ir += f"if CF == 0 then jmp {self.else_block.label} else jmp {self.then_block.label}"
         return ir
 
 
@@ -296,22 +296,9 @@ class BasicBlock:
 
 @dataclass
 class CFG:
-    """Control Flow Graph for a function."""
-
     name: str
     entry: BasicBlock
     exit: BasicBlock
-
-    def bfs(self) -> Iterator[tuple[int, BasicBlock]]:
-        visited_blocks = set()
-        q = deque([(0, self.entry)])
-        while len(q) > 0:
-            (depth, bb) = q.popleft()
-            if bb in visited_blocks:
-                continue
-            visited_blocks.add(bb)
-            yield (depth, bb)
-            q.extend(((depth + 1, s) for s in bb.succ if s not in visited_blocks))
 
     def __iter__(self) -> Iterator[BasicBlock]:
         visited_blocks = set()

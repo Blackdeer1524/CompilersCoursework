@@ -29,7 +29,7 @@ class TestLICM(base.TestBase):
                 i_v1 = 0
                 %0_v1 = i_v1 < 10
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB7 else jmp BB3
+                if CF == 0 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
 
             ; pred: [BB2, BB6]
@@ -61,7 +61,7 @@ class TestLICM(base.TestBase):
                 i_v3 = i_v2 + 1
                 %5_v1 = i_v3 < 10
                 cmp(%5_v1, 0)
-                if CF == 1 then jmp BB6 else jmp BB4
+                if CF == 0 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
             ; pred: [BB5]
@@ -93,7 +93,7 @@ class TestLICM(base.TestBase):
                 i_v1 = 0
                 %0_v1 = i_v1 < 10
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB7 else jmp BB3
+                if CF == 0 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
 
             ; pred: [BB2, BB6]
@@ -122,7 +122,7 @@ class TestLICM(base.TestBase):
             ; pred: [BB4]
             BB8: ; [condition check]
                 cmp(%3_v1, 0)
-                if CF == 1 then jmp BB13 else jmp BB9
+                if CF == 0 then jmp BB9 else jmp BB13
             ; succ: [BB9, BB13]
 
             ; pred: [BB8, BB12]
@@ -135,7 +135,7 @@ class TestLICM(base.TestBase):
                 i_v3 = i_v2 + 1
                 %13_v1 = i_v3 < 10
                 cmp(%13_v1, 0)
-                if CF == 1 then jmp BB6 else jmp BB4
+                if CF == 0 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
             ; pred: [BB5]
@@ -160,7 +160,7 @@ class TestLICM(base.TestBase):
                 j_v3 = j_v2 + 1
                 %8_v1 = j_v3 < 10
                 cmp(%8_v1, 0)
-                if CF == 1 then jmp BB12 else jmp BB10
+                if CF == 0 then jmp BB10 else jmp BB12
             ; succ: [BB10, BB12]
 
             ; pred: [BB11]
@@ -199,7 +199,7 @@ class TestLICM(base.TestBase):
                 i_v1 = 0
                 %0_v1 = i_v1 < N_v1
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB7 else jmp BB3
+                if CF == 0 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
 
             ; pred: [BB2, BB6]
@@ -231,7 +231,7 @@ class TestLICM(base.TestBase):
                 i_v3 = i_v2 + 1
                 %5_v1 = i_v3 < N_v1
                 cmp(%5_v1, 0)
-                if CF == 1 then jmp BB6 else jmp BB4
+                if CF == 0 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
             ; pred: [BB5]
@@ -271,7 +271,7 @@ class TestLICM(base.TestBase):
                 i_v1 = 0
                 %0_v1 = i_v1 < 10
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB7 else jmp BB3
+                if CF == 0 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
 
             ; pred: [BB2, BB6]
@@ -298,7 +298,7 @@ class TestLICM(base.TestBase):
                 N_v1 = foo()
                 %3_v1 = N_v1 == 0
                 cmp(%3_v1, 0)
-                if CF == 1 then jmp BB9 else jmp BB8
+                if CF == 0 then jmp BB8 else jmp BB9
             ; succ: [BB9, BB8]
 
             ; pred: [BB4]
@@ -319,7 +319,7 @@ class TestLICM(base.TestBase):
                 i_v3 = i_v2 + 1
                 %8_v1 = i_v3 < 10
                 cmp(%8_v1, 0)
-                if CF == 1 then jmp BB6 else jmp BB4
+                if CF == 0 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
             ; pred: [BB5]
@@ -362,7 +362,7 @@ class TestLICM(base.TestBase):
                 i_v1 = 0
                 %0_v1 = i_v1 < 10
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB7 else jmp BB3
+                if CF == 0 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
 
             ; pred: [BB2, BB6]
@@ -388,7 +388,7 @@ class TestLICM(base.TestBase):
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
                 cmp(%3_v1, 0)
-                if CF == 1 then jmp BB9 else jmp BB8
+                if CF == 0 then jmp BB8 else jmp BB9
             ; succ: [BB9, BB8]
 
             ; pred: [BB4]
@@ -414,7 +414,7 @@ class TestLICM(base.TestBase):
                 i_v3 = i_v2 + 1
                 %8_v1 = i_v3 < 10
                 cmp(%8_v1, 0)
-                if CF == 1 then jmp BB6 else jmp BB4
+                if CF == 0 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
         """).strip()
         self.assert_ir(src, expected_ir)
@@ -455,7 +455,7 @@ class TestLICM(base.TestBase):
                 i_v1 = 0
                 %0_v1 = i_v1 < 10
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB7 else jmp BB3
+                if CF == 0 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
 
             ; pred: [BB2, BB6]
@@ -482,7 +482,7 @@ class TestLICM(base.TestBase):
                 N_v1 = foo()
                 %3_v1 = N_v1 == 0
                 cmp(%3_v1, 0)
-                if CF == 1 then jmp BB9 else jmp BB8
+                if CF == 0 then jmp BB8 else jmp BB9
             ; succ: [BB9, BB8]
 
             ; pred: [BB4]
@@ -506,7 +506,7 @@ class TestLICM(base.TestBase):
                 j_v1 = 0
                 %6_v1 = j_v1 < 10
                 cmp(%6_v1, 0)
-                if CF == 1 then jmp BB15 else jmp BB11
+                if CF == 0 then jmp BB11 else jmp BB15
             ; succ: [BB11, BB15]
 
             ; pred: [BB10, BB14]
@@ -519,7 +519,7 @@ class TestLICM(base.TestBase):
                 i_v3 = i_v2 + 1
                 %18_v1 = i_v3 < 10
                 cmp(%18_v1, 0)
-                if CF == 1 then jmp BB6 else jmp BB4
+                if CF == 0 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
             ; pred: [BB10]
@@ -541,7 +541,7 @@ class TestLICM(base.TestBase):
                 j_v3 = j_v2 + 1
                 %13_v1 = j_v3 < 10
                 cmp(%13_v1, 0)
-                if CF == 1 then jmp BB14 else jmp BB12
+                if CF == 0 then jmp BB12 else jmp BB14
             ; succ: [BB12, BB14]
 
             ; pred: [BB13]
@@ -575,7 +575,7 @@ class TestLICM(base.TestBase):
                 i_v1 = 0
                 %0_v1 = i_v1 < 10
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB7 else jmp BB3
+                if CF == 0 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
 
             ; pred: [BB2, BB6]
@@ -606,7 +606,7 @@ class TestLICM(base.TestBase):
                 i_v3 = i_v2 + 1
                 %9_v1 = i_v3 < 10
                 cmp(%9_v1, 0)
-                if CF == 1 then jmp BB6 else jmp BB4
+                if CF == 0 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
             ; pred: [BB5]
@@ -641,7 +641,7 @@ class TestLICM(base.TestBase):
                 i_v1 = 0
                 %0_v1 = i_v1 < 10
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB7 else jmp BB3
+                if CF == 0 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
 
             ; pred: [BB2, BB6]
@@ -673,7 +673,7 @@ class TestLICM(base.TestBase):
                 i_v3 = i_v2 + 1
                 %11_v1 = i_v3 < 10
                 cmp(%11_v1, 0)
-                if CF == 1 then jmp BB6 else jmp BB4
+                if CF == 0 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
             ; pred: [BB5]
@@ -708,7 +708,7 @@ class TestLICM(base.TestBase):
                 i_v1 = 0
                 %0_v1 = i_v1 < 10
                 cmp(%0_v1, 0)
-                if CF == 1 then jmp BB7 else jmp BB3
+                if CF == 0 then jmp BB3 else jmp BB7
             ; succ: [BB3, BB7]
 
             ; pred: [BB2, BB6]
@@ -745,7 +745,7 @@ class TestLICM(base.TestBase):
                 i_v3 = i_v2 + 1
                 %13_v1 = i_v3 < 10
                 cmp(%13_v1, 0)
-                if CF == 1 then jmp BB6 else jmp BB4
+                if CF == 0 then jmp BB4 else jmp BB6
             ; succ: [BB4, BB6]
 
             ; pred: [BB5]

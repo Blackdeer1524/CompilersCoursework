@@ -24,6 +24,7 @@ from src.ssa.cfg import (
     SSAVariable,
     SSAConstant,
 )
+from src.ssa.helpers import unwrap
 
 
 @dataclass(frozen=True)
@@ -225,17 +226,17 @@ class SCCP(OptimizationPass):
 
     def _process_variable_users(self, key: tuple[str, int]):
         for user in self.uses.get(key, []):
+            bb = self.inst_block[user]
+            if bb not in self.executable_blocks:
+                continue
+
             match user:
                 case InstPhi():
-                    bb = self.inst_block[user]
-                    if bb in self.executable_blocks:
-                        self._evaluate_phi(user)
+                    self._evaluate_phi(user)
                 case InstAssign():
                     self._evaluate_assign(user)
                 case InstCmp():
-                    bb = self.inst_block[user]
-                    if bb in self.executable_blocks:
-                        self._evaluate_branch(user, bb)
+                    self._evaluate_branch(user, bb)
                 case InstStore():
                     self._evaluate_store(user)
                 case _:
@@ -264,27 +265,24 @@ class SCCP(OptimizationPass):
     def _evaluate_assign(self, inst: InstAssign):
         lhs = inst.lhs
         val_lv = self._evaluate_rhs(inst.rhs)
-
-        assert lhs.version is not None
-        self._set_lattice((lhs.name, lhs.version), val_lv)
+        self._set_lattice((lhs.name, unwrap(lhs.version)), val_lv)
 
     def _evaluate_rhs(self, rhs: Operation | SSAValue) -> LatticeValue:
-        if isinstance(rhs, Operation):
-            match rhs:
-                case OpLoad():
-                    return LatticeValue.nac()
-                case OpBinary(op, left, right):
-                    lv = self._get_lattice_of_value(left)
-                    rv = self._get_lattice_of_value(right)
-                    return self._eval_binary(op, lv, rv)
-                case OpUnary(op, val):
-                    vv = self._get_lattice_of_value(val)
-                    return self._eval_unary(op, vv)
-                case OpCall(_, _):
-                    # Unknown side-effects and results - not a constant
-                    return LatticeValue.nac()
-        else:
+        if not isinstance(rhs, Operation):
             return self._get_lattice_of_value(rhs)
+
+        match rhs:
+            case OpLoad():
+                return LatticeValue.nac()
+            case OpBinary(op, left, right):
+                lv = self._get_lattice_of_value(left)
+                rv = self._get_lattice_of_value(right)
+                return self._eval_binary(op, lv, rv)
+            case OpUnary(op, val):
+                vv = self._get_lattice_of_value(val)
+                return self._eval_unary(op, vv)
+            case OpCall(_, _):
+                return LatticeValue.nac()
         return LatticeValue.nac()
 
     def _evaluate_array_init(self, inst: InstArrayInit):
@@ -306,61 +304,58 @@ class SCCP(OptimizationPass):
     def _eval_binary(self, op: str, a: LatticeValue, b: LatticeValue) -> LatticeValue:
         if a.is_nac() or b.is_nac():
             return LatticeValue.nac()
+
         if not (a.is_const() and b.is_const()):
             return LatticeValue.undef()
-        x, y = a.value, b.value
-        assert x is not None and y is not None
-        try:
-            if op == "+":
-                return LatticeValue.const(x + y)
-            if op == "-":
-                return LatticeValue.const(x - y)
-            if op == "*":
-                return LatticeValue.const(x * y)
-            if op == "/":
-                if y == 0:
-                    return LatticeValue.nac()
-                return LatticeValue.const(x // y)
-            if op == "%":
-                if y == 0:
-                    return LatticeValue.nac()
-                return LatticeValue.const(x % y)
-            if op == "==":
-                return LatticeValue.const(1 if x == y else 0)
-            if op == "!=":
-                return LatticeValue.const(1 if x != y else 0)
-            if op == "<":
-                return LatticeValue.const(1 if x < y else 0)
-            if op == "<=":
-                return LatticeValue.const(1 if x <= y else 0)
-            if op == ">":
-                return LatticeValue.const(1 if x > y else 0)
-            if op == ">=":
-                return LatticeValue.const(1 if x >= y else 0)
-            if op == "&&":
-                return LatticeValue.const(self._truthy(x) & self._truthy(y))
-            if op == "||":
-                return LatticeValue.const(
-                    1 if (self._truthy(x) | self._truthy(y)) else 0
-                )
-        except Exception:
-            return LatticeValue.nac()
-        return LatticeValue.nac()
+
+        x, y = unwrap(a.value), unwrap(b.value)
+        if op == "+":
+            return LatticeValue.const(x + y)
+        if op == "-":
+            return LatticeValue.const(x - y)
+        if op == "*":
+            return LatticeValue.const(x * y)
+        if op == "/":
+            if y == 0:
+                return LatticeValue.nac()
+            return LatticeValue.const(x // y)
+        if op == "%":
+            if y == 0:
+                return LatticeValue.nac()
+            return LatticeValue.const(x % y)
+        if op == "==":
+            return LatticeValue.const(1 if x == y else 0)
+        if op == "!=":
+            return LatticeValue.const(1 if x != y else 0)
+        if op == "<":
+            return LatticeValue.const(1 if x < y else 0)
+        if op == "<=":
+            return LatticeValue.const(1 if x <= y else 0)
+        if op == ">":
+            return LatticeValue.const(1 if x > y else 0)
+        if op == ">=":
+            return LatticeValue.const(1 if x >= y else 0)
+        if op == "&&":
+            return LatticeValue.const(self._truthy(x) & self._truthy(y))
+        if op == "||":
+            return LatticeValue.const(1 if (self._truthy(x) | self._truthy(y)) else 0)
+
+        raise RuntimeError(f"Unknown operator: {op}")
 
     def _eval_unary(self, op: str, v: LatticeValue) -> LatticeValue:
         if v.is_nac():
             return LatticeValue.nac()
         if not v.is_const():
             return LatticeValue.undef()
-        x = v.value
-        assert x is not None
-        try:
-            if op == "-":
-                return LatticeValue.const(-x)
-            if op == "!":
-                return LatticeValue.const(0 if x != 0 else 1)
-        except Exception:
-            return LatticeValue.nac()
+
+        x = unwrap(v.value)
+        if op == "+":
+            return LatticeValue.const(x)
+        if op == "-":
+            return LatticeValue.const(-x)
+        if op == "!":
+            return LatticeValue.const(0 if x != 0 else 1)
+
         return LatticeValue.nac()
 
     def _evaluate_branch(self, br: InstCmp, bb: BasicBlock):
