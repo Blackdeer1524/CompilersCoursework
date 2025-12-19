@@ -691,7 +691,7 @@ class CFGBuilder:
         body_st = unwrap(stmt.body.symbol_table)
         initial_cond_block = self._new_block(body_st, "condition check")
         preheader_block = self._new_block(body_st, "loop preheader")
-        header_block = self._new_block(body_st, "loop header")
+        body_block = self._new_block(body_st, "loop body")
         update_block = self._new_block(body_st, "loop update")
 
         # required for an easier loop detection in LICM : all tail's predecessors are guaranteed to be loop blocks
@@ -712,12 +712,12 @@ class CFGBuilder:
         self.cur_block.add_child(exit_block)
 
         self._switch_to_block(preheader_block)
-        self.cur_block.append(InstUncondJump(header_block))
-        self.cur_block.add_child(header_block)
+        self.cur_block.append(InstUncondJump(body_block))
+        self.cur_block.add_child(body_block)
 
         self.break_targets.append(tail_block)
         self.continue_targets.append(update_block)
-        self._switch_to_block(header_block)
+        self._switch_to_block(body_block)
         self._build_block(stmt.body)
 
         if len(self.cur_block.instructions) == 0 or not isinstance(
@@ -731,9 +731,9 @@ class CFGBuilder:
             self._build_reassignment(reassignment)
         cond_var2 = self._build_subexpression(stmt.condition, self._get_tmp_var())
         self.cur_block.append(
-            InstCmp(cond_var2, SSAConstant(1), header_block, tail_block)
+            InstCmp(cond_var2, SSAConstant(1), body_block, tail_block)
         )
-        self.cur_block.add_child(header_block)
+        self.cur_block.add_child(body_block)
         self.cur_block.add_child(tail_block)
 
         self.break_targets.pop()
@@ -750,7 +750,7 @@ class CFGBuilder:
 
         body_st = unwrap(stmt.body.symbol_table)
         preheader_block = self._new_block(body_st, "uncond loop preheader")
-        header_block = self._new_block(body_st, "uncond loop header")
+        body_block = self._new_block(body_st, "uncond loop body")
         update_block = self._new_block(body_st, "uncond loop update")
         tail_block = self._new_block(body_st, "uncond loop tail")
         exit_block = self._new_block(self.cur_block.symbol_table, "uncond loop exit")
@@ -759,9 +759,9 @@ class CFGBuilder:
         self.cur_block.add_child(preheader_block)
         self._switch_to_block(preheader_block)
 
-        self.cur_block.append(InstUncondJump(header_block))
-        self.cur_block.add_child(header_block)
-        self._switch_to_block(header_block)
+        self.cur_block.append(InstUncondJump(body_block))
+        self.cur_block.add_child(body_block)
+        self._switch_to_block(body_block)
 
         self.break_targets.append(tail_block)
         self.continue_targets.append(update_block)
@@ -776,8 +776,8 @@ class CFGBuilder:
             self.cur_block.append(InstUncondJump(update_block))
 
         self._switch_to_block(update_block)
-        self.cur_block.append(InstUncondJump(header_block))
-        self.cur_block.add_child(header_block)
+        self.cur_block.append(InstUncondJump(body_block))
+        self.cur_block.add_child(body_block)
 
         self._switch_to_block(tail_block)
         self.cur_block.append(InstUncondJump(exit_block))

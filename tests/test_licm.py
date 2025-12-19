@@ -50,7 +50,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
                 jmp BB5
@@ -113,7 +113,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
                 jmp BB8
@@ -149,7 +149,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB10]
 
             ; pred: [BB9, BB11]
-            BB10: ; [loop header]
+            BB10: ; [loop body]
                 j_v2 = ϕ(BB9: j_v1, BB11: j_v3)
 
                 jmp BB11
@@ -220,7 +220,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
                 jmp BB5
@@ -291,7 +291,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 v_v2 = ϕ(BB3: v_v1, BB5: v_v4)
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
@@ -384,7 +384,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
                 cmp(%3_v1, 1)
@@ -476,7 +476,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
                 N_v1 = foo()
@@ -529,7 +529,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB12]
 
             ; pred: [BB11, BB13]
-            BB12: ; [loop header]
+            BB12: ; [loop body]
                 j_v2 = ϕ(BB11: j_v1, BB13: j_v3)
 
                 a_v2 = N_v2 + j_v2
@@ -595,7 +595,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
                 jmp BB5
@@ -660,7 +660,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
                 b_v1 = i_v2 + 1
@@ -730,7 +730,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
                 %4_v1 = i_v2 * 1

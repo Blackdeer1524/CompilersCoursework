@@ -50,7 +50,7 @@ class TestSSA(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 j_v2 = ϕ(BB3: j_v1, BB5: j_v3)
 
                 %4_v1 = j_v2 + 1
@@ -135,7 +135,7 @@ class TestSSA(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 j_v2 = ϕ(BB3: j_v1, BB5: j_v3)
 
                 jmp BB5
@@ -185,7 +185,7 @@ class TestSSA(base.TestBase):
             ; succ: [BB3]
 
             ; pred: [BB2, BB4]
-            BB3: ; [uncond loop header]
+            BB3: ; [uncond loop body]
                 %0_v1 = i_v1 == 5
                 cmp(%0_v1, 1)
                 if CF == 1 then jmp BB7 else jmp BB8
@@ -274,7 +274,7 @@ class TestSSA(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
                 %4_v1 = i_v2 * 1

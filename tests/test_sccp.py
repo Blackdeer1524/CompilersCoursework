@@ -152,7 +152,7 @@ class TestSCCP(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 s_v2 = ϕ(BB3: 0, BB5: s_v3)
                 i_v2 = ϕ(BB3: 0, BB5: i_v3)
 
@@ -258,7 +258,7 @@ class TestSCCP(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 N_v2 = ϕ(BB3: 0, BB5: N_v4)
                 i_v2 = ϕ(BB3: 0, BB5: i_v3)
 
@@ -340,7 +340,7 @@ class TestSCCP(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 N_v2 = ϕ(BB3: 5)
                 i_v2 = ϕ(BB3: 0)
 
@@ -402,7 +402,7 @@ class TestSCCP(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 n_v2 = ϕ(BB3: 0, BB5: n_v3)
                 i_v2 = ϕ(BB3: 0, BB5: i_v3)
 
@@ -472,7 +472,7 @@ class TestSCCP(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 i_v2 = ϕ(BB3: 0, BB5: i_v3)
 
                 %3_v1 = 0
@@ -540,7 +540,7 @@ class TestSCCP(base.TestBase):
             ; succ: [BB3]
 
             ; pred: [BB2]
-            BB3: ; [uncond loop header]
+            BB3: ; [uncond loop body]
                 a_v1 = 1
                 %2_v1 = 1
                 jmp BB7

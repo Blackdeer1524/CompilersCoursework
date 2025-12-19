@@ -67,7 +67,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
                 jmp BB5
@@ -291,7 +291,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
                 jmp BB8
@@ -329,7 +329,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB10]
 
             ; pred: [BB9, BB11]
-            BB10: ; [loop header]
+            BB10: ; [loop body]
                 j_v2 = ϕ(BB9: j_v1, BB11: j_v3)
 
                 jmp BB11
@@ -435,7 +435,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
                 jmp BB5
@@ -683,7 +683,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
                 jmp BB5
@@ -749,7 +749,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 i_v2 = ϕ(BB3: i_v1, BB5: i_v3)
 
                 %4_v1 = i_v2 * 1
@@ -847,7 +847,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB3]
 
             ; pred: [BB2, BB4]
-            BB3: ; [uncond loop header]
+            BB3: ; [uncond loop body]
                 %0_v1 = foo((<~)a_v1)
                 %2_v1 = bar()
                 cmp(%2_v1, 1)
@@ -939,7 +939,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB3]
 
             ; pred: [BB2, BB4]
-            BB3: ; [uncond loop header]
+            BB3: ; [uncond loop body]
                 %0_v1 = foo((<~)a_v1)
                 %2_v1 = bar()
                 cmp(%2_v1, 1)
@@ -1015,7 +1015,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB3]
 
             ; pred: [BB2, BB4]
-            BB3: ; [uncond loop header]
+            BB3: ; [uncond loop body]
                 %0_v1 = foo((<~)a_v1)
                 %3_v1 = 4 * 1
                 (a_v1<~)%4_v1 = (<~)a_v1 + %3_v1

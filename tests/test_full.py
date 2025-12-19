@@ -44,7 +44,7 @@ class TestEndToEnd(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB3, BB5]
-            BB4: ; [loop header]
+            BB4: ; [loop body]
                 i_v2 = ϕ(BB3: 0, BB5: i_v3)
 
                 jmp BB8
@@ -62,7 +62,7 @@ class TestEndToEnd(base.TestBase):
             ; succ: [BB10]
 
             ; pred: [BB9, BB11]
-            BB10: ; [loop header]
+            BB10: ; [loop body]
                 sum_v3 = ϕ(BB9: 0, BB11: sum_v4)
                 j_v2 = ϕ(BB9: 0, BB11: j_v3)
 
