@@ -89,7 +89,7 @@ class TestSSA(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB8, BB11]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 j_v3 = j_v2 + 1
                 %13_v1 = j_v3 < 10
                 cmp(%13_v1, 0)
@@ -166,7 +166,7 @@ class TestSSA(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB4]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 j_v3 = j_v2 + 1
                 %5_v1 = j_v3 < 10
                 cmp(%5_v1, 0)
@@ -221,7 +221,7 @@ class TestSSA(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB7, BB10]
-            BB4: ; [uncond loop update]
+            BB4: ; [uncond loop latch]
                 jmp BB3
             ; succ: [BB3]
 
@@ -308,7 +308,7 @@ class TestSSA(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB4]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %9_v1 = i_v3 < 64
                 cmp(%9_v1, 0)

@@ -79,7 +79,7 @@ class TestEndToEnd(base.TestBase):
             ; succ: [BB11]
 
             ; pred: [BB10]
-            BB11: ; [loop update]
+            BB11: ; [loop latch]
                 j_v3 = j_v2 + 1
                 %23_v1 = j_v3 < 64
                 cmp(%23_v1, 0)
@@ -102,7 +102,7 @@ class TestEndToEnd(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB13]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %32_v1 = i_v3 < 64
                 cmp(%32_v1, 0)

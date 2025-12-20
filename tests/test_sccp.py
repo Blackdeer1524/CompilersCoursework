@@ -51,6 +51,39 @@ class TestSCCP(base.TestBase):
 
         self.assert_ir(src, expected_ir)
 
+    def test_zero_mult(self):
+        src = """
+        func main() -> int {
+            let a int = input();
+            let b int = 0;
+            let c int = a * b;  // 0
+            let d int = b * a;  // 0
+            return c + d;  // 0
+        }
+        
+        func input() -> int {
+            return 0;
+        }
+        """
+
+        expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                a_v1 = input()
+                b_v1 = 0
+                c_v1 = 0
+                d_v1 = 0
+                %4_v1 = 0
+                return(0)
+            ; succ: [BB1]
+
+            ; pred: [BB0]
+            BB1: ; [exit]
+            ; succ: []
+        """).strip()
+
+        self.assert_ir(src, expected_ir)
+
     def test_simple_unreachable_block_drop(self):
         src = self.make_main("""
             let a int = 0;
@@ -164,7 +197,7 @@ class TestSCCP(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB4]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %11_v1 = i_v3 < 10
                 cmp(%11_v1, 0)
@@ -298,7 +331,7 @@ class TestSCCP(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB9]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %12_v1 = i_v3 < 10
                 cmp(%12_v1, 0)
@@ -411,7 +444,7 @@ class TestSCCP(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB4]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 %5_v1 = 2 * i_v2
                 i_v3 = %5_v1 + 1
                 %9_v1 = i_v3 < 10
@@ -485,7 +518,7 @@ class TestSCCP(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB9]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %10_v1 = i_v3 < 10
                 cmp(%10_v1, 0)

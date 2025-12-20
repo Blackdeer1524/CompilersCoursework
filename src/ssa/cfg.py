@@ -682,7 +682,7 @@ class CFGBuilder:
         initial_cond_block = self._new_block(body_st, "condition check")
         preheader_block = self._new_block(body_st, "loop preheader")
         body_block = self._new_block(body_st, "loop body")
-        update_block = self._new_block(body_st, "loop update")
+        latch_block = self._new_block(body_st, "loop latch")
 
         # required for an easier loop detection in LICM : all tail's predecessors are guaranteed to be loop blocks
         tail_block = self._new_block(body_st, "loop tail")
@@ -706,17 +706,17 @@ class CFGBuilder:
         self.cur_block.add_child(body_block)
 
         self.break_targets.append(tail_block)
-        self.continue_targets.append(update_block)
+        self.continue_targets.append(latch_block)
         self._switch_to_block(body_block)
         self._build_block(stmt.body)
 
         if len(self.cur_block.instructions) == 0 or not isinstance(
             self.cur_block.instructions[-1], (InstUncondJump, InstCmp, InstReturn)
         ):
-            self.cur_block.add_child(update_block)
-            self.cur_block.append(InstUncondJump(update_block))
+            self.cur_block.add_child(latch_block)
+            self.cur_block.append(InstUncondJump(latch_block))
 
-        self._switch_to_block(update_block)
+        self._switch_to_block(latch_block)
         for reassignment in stmt.update:
             self._build_reassignment(reassignment)
         cond_var2 = self._build_subexpression(stmt.condition, self._get_tmp_var())
@@ -741,7 +741,7 @@ class CFGBuilder:
         body_st = unwrap(stmt.body.symbol_table)
         preheader_block = self._new_block(body_st, "uncond loop preheader")
         body_block = self._new_block(body_st, "uncond loop body")
-        update_block = self._new_block(body_st, "uncond loop update")
+        latch_block = self._new_block(body_st, "uncond loop latch")
         tail_block = self._new_block(body_st, "uncond loop tail")
         exit_block = self._new_block(self.cur_block.symbol_table, "uncond loop exit")
 
@@ -754,7 +754,7 @@ class CFGBuilder:
         self._switch_to_block(body_block)
 
         self.break_targets.append(tail_block)
-        self.continue_targets.append(update_block)
+        self.continue_targets.append(latch_block)
         self._build_block(stmt.body)
         self.break_targets.pop()
         self.continue_targets.pop()
@@ -762,10 +762,10 @@ class CFGBuilder:
         if len(self.cur_block.instructions) == 0 or not isinstance(
             self.cur_block.instructions[-1], (InstUncondJump, InstCmp, InstReturn)
         ):
-            self.cur_block.add_child(update_block)
-            self.cur_block.append(InstUncondJump(update_block))
+            self.cur_block.add_child(latch_block)
+            self.cur_block.append(InstUncondJump(latch_block))
 
-        self._switch_to_block(update_block)
+        self._switch_to_block(latch_block)
         self.cur_block.append(InstUncondJump(body_block))
         self.cur_block.add_child(body_block)
 

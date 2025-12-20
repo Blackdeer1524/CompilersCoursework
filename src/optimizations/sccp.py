@@ -107,20 +107,18 @@ class SCCP(OptimizationPass):
             for phi in bb.phi_nodes.values():
                 self.inst_block[phi] = bb
                 # LHS def
-                if phi.lhs.version is not None:
-                    self.defs[(phi.lhs.name, phi.lhs.version)] = phi
+                self.defs[(phi.lhs.name, unwrap(phi.lhs.version))] = phi
                 # RHS uses
                 for pred_label, val in phi.rhs.items():
-                    if isinstance(val, SSAVariable) and val.version is not None:
-                        self.uses[(val.name, val.version)].add(phi)
+                    if isinstance(val, SSAVariable):
+                        self.uses[(val.name, unwrap(val.version))].add(phi)
 
             # Instructions
             for inst in bb.instructions:
                 self.inst_block[inst] = bb
                 match inst:
                     case InstAssign(lhs, rhs):
-                        if lhs.version is not None:
-                            self.defs[(lhs.name, lhs.version)] = inst
+                        self.defs[(lhs.name, unwrap(lhs.version))] = inst
                         for v in self._iter_uses_from_rhs(rhs):
                             self.uses[v].add(inst)
                     case InstCmp(left, right):
@@ -136,11 +134,9 @@ class SCCP(OptimizationPass):
                         for v in self._iter_uses_from_rhs(value):
                             self.uses[v].add(inst)
                     case InstArrayInit(lhs):
-                        if lhs.version is not None:
-                            self.defs[(lhs.name, lhs.version)] = inst
+                        self.defs[(lhs.name, unwrap(lhs.version))] = inst
                     case InstGetArgument(lhs, _):
-                        if lhs.version is not None:
-                            self.defs[(lhs.name, lhs.version)] = inst
+                        self.defs[(lhs.name, unwrap(lhs.version))] = inst
                     case _:
                         pass
 
@@ -176,10 +172,9 @@ class SCCP(OptimizationPass):
         if (pred, succ) in self.feasible_edges:
             return
         self.feasible_edges.add((pred, succ))
-        # First time succ gets any feasible edge => executable
+
         if succ not in self.executable_blocks:
             self._mark_block_executable(succ)
-        # Update phis in successor
         self._update_phis_for_edge(pred, succ)
 
     def _update_phis_for_edge(self, pred: BasicBlock, succ: BasicBlock):
@@ -191,9 +186,9 @@ class SCCP(OptimizationPass):
         if isinstance(v, SSAConstant):
             return LatticeValue.const(v.value)
         if isinstance(v, SSAVariable):
-            if v.version is None:
-                return LatticeValue.undef()
-            return self.value_state.get((v.name, v.version), LatticeValue.undef())
+            return self.value_state.get(
+                (v.name, unwrap(v.version)), LatticeValue.undef()
+            )
         return LatticeValue.nac()
 
     def _set_lattice(self, key: tuple[str, int], val: LatticeValue):
@@ -259,8 +254,7 @@ class SCCP(OptimizationPass):
         for v in vals:
             result = join(result, v)
 
-        assert phi.lhs.version is not None
-        self._set_lattice((phi.lhs.name, phi.lhs.version), result)
+        self._set_lattice((phi.lhs.name, unwrap(phi.lhs.version)), result)
 
     def _evaluate_assign(self, inst: InstAssign):
         lhs = inst.lhs
@@ -287,13 +281,11 @@ class SCCP(OptimizationPass):
 
     def _evaluate_array_init(self, inst: InstArrayInit):
         lhs = inst.lhs
-        assert lhs.version is not None
-        self._set_lattice((lhs.name, lhs.version), LatticeValue.nac())
+        self._set_lattice((lhs.name, unwrap(lhs.version)), LatticeValue.nac())
 
     def _evaluate_get_argument(self, inst: InstGetArgument):
         lhs = inst.lhs
-        assert lhs.version is not None
-        self._set_lattice((lhs.name, lhs.version), LatticeValue.nac())
+        self._set_lattice((lhs.name, unwrap(lhs.version)), LatticeValue.nac())
 
     def _evaluate_store(self, inst: InstStore):
         return LatticeValue.nac()
@@ -302,10 +294,14 @@ class SCCP(OptimizationPass):
         return 1 if v != 0 else 0
 
     def _eval_binary(self, op: str, a: LatticeValue, b: LatticeValue) -> LatticeValue:
+        if op == "*":
+            if a.is_const() and a.value == 0 or b.is_const() and b.value == 0:
+                return LatticeValue.const(0)
+
         if a.is_nac() or b.is_nac():
             return LatticeValue.nac()
 
-        if not (a.is_const() and b.is_const()):
+        if not a.is_const() or not b.is_const():
             return LatticeValue.undef()
 
         x, y = unwrap(a.value), unwrap(b.value)
@@ -359,10 +355,8 @@ class SCCP(OptimizationPass):
         return LatticeValue.nac()
 
     def _evaluate_branch(self, br: InstCmp, bb: BasicBlock):
-        left = br.left
-        right = br.right
-        lv = self._get_lattice_of_value(left)
-        rv = self._get_lattice_of_value(right)
+        lv = self._get_lattice_of_value(br.left)
+        rv = self._get_lattice_of_value(br.right)
         if lv.is_const() and rv.is_const():
             cond_true = 1 if lv.value == rv.value else 0
             if cond_true == 1:
@@ -476,8 +470,8 @@ class SCCP(OptimizationPass):
         return rhs
 
     def _replace_value(self, v: SSAValue) -> SSAValue:
-        if isinstance(v, SSAVariable) and v.version is not None:
-            lv = self.value_state.get((v.name, v.version))
+        if isinstance(v, SSAVariable):
+            lv = self.value_state.get((v.name, unwrap(v.version)))
             if lv is not None and lv.is_const():
                 return SSAConstant(lv.value or 0)
         return v

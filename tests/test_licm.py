@@ -57,7 +57,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB4]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %5_v1 = i_v3 < 10
                 cmp(%5_v1, 0)
@@ -131,7 +131,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB13]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %13_v1 = i_v3 < 10
                 cmp(%13_v1, 0)
@@ -156,7 +156,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB11]
 
             ; pred: [BB10]
-            BB11: ; [loop update]
+            BB11: ; [loop latch]
                 j_v3 = j_v2 + 1
                 %8_v1 = j_v3 < 10
                 cmp(%8_v1, 0)
@@ -227,7 +227,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB4]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %5_v1 = i_v3 < N_v1
                 cmp(%5_v1, 0)
@@ -315,7 +315,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB9]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %8_v1 = i_v3 < 10
                 cmp(%8_v1, 0)
@@ -410,7 +410,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB9]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %8_v1 = i_v3 < 10
                 cmp(%8_v1, 0)
@@ -515,7 +515,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB15]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %18_v1 = i_v3 < 10
                 cmp(%18_v1, 0)
@@ -537,7 +537,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB13]
 
             ; pred: [BB12]
-            BB13: ; [loop update]
+            BB13: ; [loop latch]
                 j_v3 = j_v2 + 1
                 %13_v1 = j_v3 < 10
                 cmp(%13_v1, 0)
@@ -602,7 +602,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB4]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %9_v1 = i_v3 < 10
                 cmp(%9_v1, 0)
@@ -669,7 +669,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB4]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %11_v1 = i_v3 < 10
                 cmp(%11_v1, 0)
@@ -741,7 +741,7 @@ class TestLICM(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB4]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %13_v1 = i_v3 < 10
                 cmp(%13_v1, 0)

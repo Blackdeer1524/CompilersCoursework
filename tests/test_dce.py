@@ -74,7 +74,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB4]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %7_v1 = i_v3 < 10
                 cmp(%7_v1, 0)
@@ -311,7 +311,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB13]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %15_v1 = i_v3 < 10
                 cmp(%15_v1, 0)
@@ -336,7 +336,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB11]
 
             ; pred: [BB10]
-            BB11: ; [loop update]
+            BB11: ; [loop latch]
                 j_v3 = j_v2 + 1
                 %10_v1 = j_v3 < 10
                 cmp(%10_v1, 0)
@@ -442,7 +442,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB4]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %7_v1 = i_v3 < 10
                 cmp(%7_v1, 0)
@@ -690,7 +690,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB4]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %7_v1 = i_v3 < 10
                 cmp(%7_v1, 0)
@@ -764,7 +764,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB5]
 
             ; pred: [BB4]
-            BB5: ; [loop update]
+            BB5: ; [loop latch]
                 i_v3 = i_v2 + 1
                 %17_v1 = i_v3 < 10
                 cmp(%17_v1, 0)
@@ -897,7 +897,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB10]
-            BB4: ; [uncond loop update]
+            BB4: ; [uncond loop latch]
                 jmp BB3
             ; succ: [BB3]
         """).strip()
@@ -971,7 +971,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB8]
-            BB4: ; [uncond loop update]
+            BB4: ; [uncond loop latch]
                 jmp BB3
             ; succ: [BB3] 
         """).strip()
@@ -1050,7 +1050,7 @@ class TestDCE(base.TestBase):
             ; succ: [BB4]
 
             ; pred: [BB8]
-            BB4: ; [uncond loop update]
+            BB4: ; [uncond loop latch]
                 jmp BB3
             ; succ: [BB3] """).strip()
 
