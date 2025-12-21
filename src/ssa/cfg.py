@@ -299,7 +299,6 @@ class LoopInfo:
     preheader: BasicBlock
     header: BasicBlock
     tail: BasicBlock
-    exit: BasicBlock
     blocks: set[BasicBlock] = field(init=False, default_factory=set)
 
 
