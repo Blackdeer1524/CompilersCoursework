@@ -162,7 +162,7 @@ class LValueIdentifier(LValue):
 
 @dataclass
 class LValueArrayAccess(LValue):
-    base: str  # Base variable name
+    base: str
     indices: List[Expression]
 
 
@@ -209,8 +209,6 @@ class Parser:
 
     def match(self, *token_types: TokenType) -> bool:
         return self.current_token is not None and self.current_token.type in token_types
-
-    # Grammar rules implementation
 
     def parse(self) -> Program:
         """

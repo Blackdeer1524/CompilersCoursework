@@ -860,6 +860,72 @@ class TestLICM(base.TestBase):
         """
 
         expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                v_v1 = 0
+                a_v1 = 0
+                jmp BB2
+            ; succ: [BB2]
+
+            ; pred: [BB0]
+            BB2: ; [uncond loop preheader]
+                jmp BB3
+            ; succ: [BB3]
+
+            ; pred: [BB2, BB4]
+            BB3: ; [uncond loop body]
+                v_v2 = ϕ(BB2: v_v1, BB4: v_v4)
+
+                %0_v1 = foo()
+                cmp(%0_v1, 0)
+                if CF == 0 then jmp BB7 else jmp BB8
+            ; succ: [BB7, BB8]
+
+            ; pred: [BB3, BB10]
+            BB8: ; [merge]
+                v_v4 = ϕ(BB3: v_v2, BB10: v_v3)
+
+                a_v2 = v_v4 + 2
+                %4_v1 = print(a_v2)
+                jmp BB4
+            ; succ: [BB4]
+
+            ; pred: [BB8]
+            BB4: ; [uncond loop latch]
+                jmp BB3
+            ; succ: [BB3]
+
+            ; pred: [BB3]
+            BB7: ; [then]
+                v_v3 = 2
+                %1_v1 = bar()
+                cmp(%1_v1, 0)
+                if CF == 0 then jmp BB9 else jmp BB10
+            ; succ: [BB9, BB10]
+
+            ; pred: [BB7]
+            BB10: ; [merge]
+                jmp BB8
+            ; succ: [BB8]
+
+            ; pred: [BB7]
+            BB9: ; [then]
+                jmp BB5
+            ; succ: [BB5]
+
+            ; pred: [BB9]
+            BB5: ; [uncond loop tail]
+                jmp BB6
+            ; succ: [BB6]
+
+            ; pred: [BB5]
+            BB6: ; [uncond loop exit]
+                return(v_v3)
+            ; succ: [BB1]
+
+            ; pred: [BB6]
+            BB1: ; [exit]
+            ; succ: []
         """).strip()
 
         self.assert_ir(src, expected_ir)

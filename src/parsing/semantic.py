@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+from typing import Optional
 from src.parsing.parser import (
     Program,
     Function,
@@ -85,20 +87,13 @@ class SemanticError(Exception):
         super().__init__(f"{message} at line {line}, column {column}")
 
 
+@dataclass
 class FunctionInfo:
-    def __init__(
-        self,
-        name: str,
-        return_type: Type,
-        params: list[tuple[str, Type]],
-        line: int,
-        column: int,
-    ):
-        self.name = name
-        self.return_type = return_type
-        self.params = params  # List of (name, Type) tuples
-        self.line = line
-        self.column = column
+    name: str
+    return_type: "Type"
+    params: list[tuple[str, "Type"]]
+    line: int
+    column: int
 
     def __repr__(self):
         param_str = ", ".join(f"{name} {type}" for name, type in self.params)
@@ -106,7 +101,7 @@ class FunctionInfo:
 
 
 class SymbolTable:
-    def __init__(self, parent: "SymbolTable | None" = None):
+    def __init__(self, parent: Optional["SymbolTable"] = None):
         self.parent = parent
         self.variables: dict[str, Type] = {}
         self.functions: dict[str, FunctionInfo] = {}
