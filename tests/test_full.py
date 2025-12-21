@@ -8,7 +8,7 @@ from src.optimizations.dce import DCE
 
 class TestEndToEnd(base.TestBase):
     def __init__(self, *args):
-        passes = [LICM, SCCP, DCE]
+        passes = [SCCP, DCE, LICM]
         super().__init__(passes, *args)
 
     def test_matmul(self):
@@ -120,7 +120,7 @@ class TestEndToEnd(base.TestBase):
 
             ; pred: [BB7]
             BB1: ; [exit]
-            ; succ: []
+            ; succ: [] 
         """).strip()
 
         self.assert_ir(src, expected_ir)
@@ -162,3 +162,79 @@ class TestEndToEnd(base.TestBase):
     #     """).strip()
     #
     #     self.assert_ir(src, expected_ir)
+
+    def test_for_loop_with_bad_condition(self):
+        src = """
+        func main() -> int {
+            let N int = 0;
+            for (let i int = 0; 1; i = i + 1) {
+                for (let j int = 0; j < 10; j = j + 1) {
+                }
+            }
+            return N;
+        }
+        """
+
+        expected_ir = textwrap.dedent("""
+            ; pred: []
+            BB0: ; [entry]
+                jmp BB2
+            ; succ: [BB2]
+
+            ; pred: [BB0]
+            BB2: ; [condition check]
+                jmp BB3
+            ; succ: [BB3]
+
+            ; pred: [BB2]
+            BB3: ; [loop preheader]
+                jmp BB4
+            ; succ: [BB4]
+
+            ; pred: [BB3, BB5]
+            BB4: ; [loop body]
+                jmp BB8
+            ; succ: [BB8]
+
+            ; pred: [BB4]
+            BB8: ; [condition check]
+                jmp BB9
+            ; succ: [BB9]
+
+            ; pred: [BB8]
+            BB9: ; [loop preheader]
+                jmp BB10
+            ; succ: [BB10]
+
+            ; pred: [BB9, BB11]
+            BB10: ; [loop body]
+                j_v2 = ϕ(BB9: 0, BB11: j_v3)
+
+                jmp BB11
+            ; succ: [BB11]
+
+            ; pred: [BB10]
+            BB11: ; [loop latch]
+                j_v3 = j_v2 + 1
+                %6_v1 = j_v3 < 10
+                cmp(%6_v1, 0)
+                if CF == 0 then jmp BB10 else jmp BB12
+            ; succ: [BB10, BB12]
+
+            ; pred: [BB11]
+            BB12: ; [loop tail]
+                jmp BB13
+            ; succ: [BB13]
+
+            ; pred: [BB12]
+            BB13: ; [loop exit]
+                jmp BB5
+            ; succ: [BB5]
+
+            ; pred: [BB13]
+            BB5: ; [loop latch]
+                jmp BB4
+            ; succ: [BB4] 
+        """).strip()
+
+        self.assert_ir(src, expected_ir)

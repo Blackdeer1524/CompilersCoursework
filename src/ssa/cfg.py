@@ -295,10 +295,20 @@ class BasicBlock:
 
 
 @dataclass
+class LoopInfo:
+    preheader: BasicBlock
+    header: BasicBlock
+    tail: BasicBlock
+    exit: BasicBlock
+    blocks: set[BasicBlock] = field(init=False, default_factory=set)
+
+
+@dataclass
 class CFG:
     name: str
     entry: BasicBlock
     exit: BasicBlock
+    loops_info: list[LoopInfo] = field(init=False, default_factory=list)
 
     def __iter__(self) -> Iterator[BasicBlock]:
         visited_blocks = set()
@@ -412,7 +422,7 @@ class CFGBuilder:
         entry = self._new_block(func.body.symbol_table, "entry")
         exit_block = self._new_block(func.body.symbol_table, "exit")
 
-        self.current_cfg = CFG(func.name, entry=entry, exit=exit_block)
+        self.cfg = CFG(func.name, entry=entry, exit=exit_block)
         self.cur_block = entry
 
         for i, arg in enumerate(func.args):
@@ -422,7 +432,7 @@ class CFGBuilder:
         if not self.cur_block.succ:
             self.cur_block.add_child(exit_block)
 
-        return self.current_cfg
+        return self.cfg
 
     def _build_block(self, syntax_block: Block):
         assert self.cur_block is not None
@@ -639,6 +649,7 @@ class CFGBuilder:
         then_block = self._new_block(unwrap(stmt.then_block.symbol_table), "then")
         merge_block = self._new_block(self.cur_block.symbol_table, "merge")
 
+        self.cur_block.add_child(then_block)
         cond_var = self._build_subexpression(stmt.condition, self._get_tmp_var())
         if stmt.else_block is None:
             self.cur_block.append(
@@ -656,14 +667,17 @@ class CFGBuilder:
             self._switch_to_block(else_block)
             self._build_block(stmt.else_block)
 
+            if self.cur_block == else_block:
+                self.cur_block.add_child(merge_block)
+
             if len(self.cur_block.instructions) == 0 or not isinstance(
-                self.cur_block.instructions[-1], (InstUncondJump, InstCmp, InstReturn)
+                self.cur_block.instructions[-1],
+                (InstUncondJump, InstCmp, InstReturn),
             ):
                 self.cur_block.add_child(merge_block)
                 self.cur_block.append(InstUncondJump(merge_block))
                 self._switch_to_block(old_block)
 
-        self.cur_block.add_child(then_block)
         self._switch_to_block(then_block)
         self._build_block(stmt.then_block)
 
@@ -734,6 +748,9 @@ class CFGBuilder:
         self.cur_block.add_child(exit_block)
 
         self._switch_to_block(exit_block)
+        self.cfg.loops_info.append(
+            LoopInfo(preheader_block, body_block, tail_block, exit_block)
+        )
 
     def _build_unconditional_loop(self, stmt: UnconditionalLoop):
         assert self.cur_block is not None, "Current block must be set"
@@ -774,10 +791,13 @@ class CFGBuilder:
         self.cur_block.add_child(exit_block)
 
         self._switch_to_block(exit_block)
+        self.cfg.loops_info.append(
+            LoopInfo(preheader_block, body_block, tail_block, exit_block)
+        )
 
     def _build_return(self, stmt: Return):
         assert self.cur_block is not None, "Current block must be set"
-        assert self.current_cfg is not None, "Current CFG must be set"
+        assert self.cfg is not None, "Current CFG must be set"
 
         if stmt.value is not None:
             ret_ssa = self._build_subexpression(stmt.value, self._get_tmp_var())
@@ -785,7 +805,7 @@ class CFGBuilder:
         else:
             self.cur_block.append(InstReturn(None))
 
-        self.cur_block.add_child(self.current_cfg.exit)
+        self.cur_block.add_child(self.cfg.exit)
         self._switch_to_block(
             self._new_block(self.cur_block.symbol_table, "after return")
         )

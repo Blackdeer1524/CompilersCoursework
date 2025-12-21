@@ -298,12 +298,22 @@ class TestSCCP(base.TestBase):
                 %3_v1 = N_v2 > 10
                 cmp(%3_v1, 0)
                 if CF == 0 then jmp BB8 else jmp BB9
-            ; succ: [BB9, BB8]
+            ; succ: [BB8, BB9]
 
             ; pred: [BB4]
-            BB8: ; [then]
-                jmp BB6
-            ; succ: [BB6]
+            BB9: ; [merge]
+                %6_v1 = N_v2 + 1
+                N_v4 = %6_v1 * 2
+                jmp BB5
+            ; succ: [BB5]
+
+            ; pred: [BB9]
+            BB5: ; [loop latch]
+                i_v3 = i_v2 + 1
+                %12_v1 = i_v3 < 10
+                cmp(%12_v1, 0)
+                if CF == 0 then jmp BB4 else jmp BB6
+            ; succ: [BB4, BB6]
 
             ; pred: [BB8, BB5]
             BB6: ; [loop tail]
@@ -324,19 +334,9 @@ class TestSCCP(base.TestBase):
             ; succ: []
 
             ; pred: [BB4]
-            BB9: ; [merge]
-                %6_v1 = N_v2 + 1
-                N_v4 = %6_v1 * 2
-                jmp BB5
-            ; succ: [BB5]
-
-            ; pred: [BB9]
-            BB5: ; [loop latch]
-                i_v3 = i_v2 + 1
-                %12_v1 = i_v3 < 10
-                cmp(%12_v1, 0)
-                if CF == 0 then jmp BB4 else jmp BB6
-            ; succ: [BB4, BB6]
+            BB8: ; [then]
+                jmp BB6
+            ; succ: [BB6] 
         """).strip()
 
         self.assert_ir(src, expected_ir)
@@ -406,7 +406,7 @@ class TestSCCP(base.TestBase):
         """).strip()
         self.assert_ir(src, expected_ir)
 
-    def test_complicacted_induction_dont_break_sccp(self):
+    def test_complicacted_induction_doesnt_break_sccp(self):
         src = self.make_main("""
             let n int = 0;
             for (let i int = 0; i < 10; i = 2 * i + 1) {

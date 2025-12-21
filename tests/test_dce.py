@@ -107,12 +107,7 @@ class TestDCE(base.TestBase):
                 %0_v1 = a_v1 == 1
                 cmp(%0_v1, 0)
                 if CF == 0 then jmp BB2 else jmp BB3
-            ; succ: [BB3, BB2]
-
-            ; pred: [BB0]
-            BB2: ; [then]
-                jmp BB3
-            ; succ: [BB3]
+            ; succ: [BB2, BB3]
 
             ; pred: [BB0, BB2]
             BB3: ; [merge]
@@ -122,6 +117,11 @@ class TestDCE(base.TestBase):
             ; pred: [BB3]
             BB1: ; [exit]
             ; succ: []
+
+            ; pred: [BB0]
+            BB2: ; [then]
+                jmp BB3
+            ; succ: [BB3]
         """).strip()
 
         self.assert_ir(src, expected_ir)
@@ -227,10 +227,10 @@ class TestDCE(base.TestBase):
                 %0_v1 = a_v1 == 0
                 cmp(%0_v1, 0)
                 if CF == 0 then jmp BB2 else jmp BB4
-            ; succ: [BB4, BB2]
+            ; succ: [BB2, BB4]
 
             ; pred: [BB0]
-            BB2: ; [then]
+            BB4: ; [else]
                 jmp BB3
             ; succ: [BB3]
 
@@ -244,7 +244,7 @@ class TestDCE(base.TestBase):
             ; succ: []
 
             ; pred: [BB0]
-            BB4: ; [else]
+            BB2: ; [then]
                 jmp BB3
             ; succ: [BB3] 
         """).strip()
@@ -531,15 +531,7 @@ class TestDCE(base.TestBase):
                 (<~)arr_v1 = array_init([10])
                 cmp(1, 0)
                 if CF == 0 then jmp BB2 else jmp BB3
-            ; succ: [BB3, BB2]
-
-            ; pred: [BB0]
-            BB2: ; [then]
-                %2_v1 = 0 * 1
-                (arr_v1<~)%3_v1 = (<~)arr_v1 + %2_v1
-                Store((arr_v1<~)%3_v1, 1)
-                jmp BB3
-            ; succ: [BB3]
+            ; succ: [BB2, BB3]
 
             ; pred: [BB0, BB2]
             BB3: ; [merge]
@@ -552,6 +544,14 @@ class TestDCE(base.TestBase):
             ; pred: [BB3]
             BB1: ; [exit]
             ; succ: []
+
+            ; pred: [BB0]
+            BB2: ; [then]
+                %2_v1 = 0 * 1
+                (arr_v1<~)%3_v1 = (<~)arr_v1 + %2_v1
+                Store((arr_v1<~)%3_v1, 1)
+                jmp BB3
+            ; succ: [BB3]
         """).strip()
 
         self.assert_ir(src, expected_ir)
@@ -578,10 +578,10 @@ class TestDCE(base.TestBase):
                 %0_v1 = x_v1 == 0
                 cmp(%0_v1, 0)
                 if CF == 0 then jmp BB2 else jmp BB4
-            ; succ: [BB4, BB2]
+            ; succ: [BB2, BB4]
 
             ; pred: [BB0]
-            BB2: ; [then]
+            BB4: ; [else]
                 jmp BB3
             ; succ: [BB3]
 
@@ -595,9 +595,9 @@ class TestDCE(base.TestBase):
             ; succ: []
 
             ; pred: [BB0]
-            BB4: ; [else]
+            BB2: ; [then]
                 jmp BB3
-            ; succ: [BB3]       
+            ; succ: [BB3]
         """).strip()
 
         self.assert_ir(src, expected_ir)
@@ -621,7 +621,16 @@ class TestDCE(base.TestBase):
                 %0_v1 = a_v1 == 1
                 cmp(%0_v1, 0)
                 if CF == 0 then jmp BB2 else jmp BB4
-            ; succ: [BB4, BB2]
+            ; succ: [BB2, BB4]
+
+            ; pred: [BB0]
+            BB4: ; [else]
+                return(1)
+            ; succ: [BB1]
+
+            ; pred: [BB4, BB3]
+            BB1: ; [exit]
+            ; succ: []
 
             ; pred: [BB0]
             BB2: ; [then]
@@ -631,15 +640,6 @@ class TestDCE(base.TestBase):
             ; pred: [BB2]
             BB3: ; [merge]
                 return(0)
-            ; succ: [BB1]
-
-            ; pred: [BB4, BB3]
-            BB1: ; [exit]
-            ; succ: []
-
-            ; pred: [BB0]
-            BB4: ; [else]
-                return(1)
             ; succ: [BB1]
         """).strip()
 
@@ -700,7 +700,7 @@ class TestDCE(base.TestBase):
             ; pred: [BB5]
             BB6: ; [loop tail]
                 jmp BB7
-            ; succ: [BB7]
+            ; succ: [BB7] 
         """).strip()
 
         self.assert_ir(src, expected_ir)
@@ -852,15 +852,7 @@ class TestDCE(base.TestBase):
                 %2_v1 = bar()
                 cmp(%2_v1, 0)
                 if CF == 0 then jmp BB7 else jmp BB8
-            ; succ: [BB8, BB7]
-
-            ; pred: [BB3]
-            BB7: ; [then]
-                %4_v1 = 5 * 1
-                (a_v1<~)%5_v1 = (<~)a_v1 + %4_v1
-                Store((a_v1<~)%5_v1, 10)
-                jmp BB8
-            ; succ: [BB8]
+            ; succ: [BB7, BB8]
 
             ; pred: [BB3, BB7]
             BB8: ; [merge]
@@ -870,7 +862,17 @@ class TestDCE(base.TestBase):
                 %7_v1 = %8_v1 == 2
                 cmp(%7_v1, 0)
                 if CF == 0 then jmp BB9 else jmp BB10
-            ; succ: [BB10, BB9]
+            ; succ: [BB9, BB10]
+
+            ; pred: [BB8]
+            BB10: ; [merge]
+                jmp BB4
+            ; succ: [BB4]
+
+            ; pred: [BB10]
+            BB4: ; [uncond loop latch]
+                jmp BB3
+            ; succ: [BB3]
 
             ; pred: [BB8]
             BB9: ; [then]
@@ -891,15 +893,13 @@ class TestDCE(base.TestBase):
             BB1: ; [exit]
             ; succ: []
 
-            ; pred: [BB8]
-            BB10: ; [merge]
-                jmp BB4
-            ; succ: [BB4]
-
-            ; pred: [BB10]
-            BB4: ; [uncond loop latch]
-                jmp BB3
-            ; succ: [BB3]
+            ; pred: [BB3]
+            BB7: ; [then]
+                %4_v1 = 5 * 1
+                (a_v1<~)%5_v1 = (<~)a_v1 + %4_v1
+                Store((a_v1<~)%5_v1, 10)
+                jmp BB8
+            ; succ: [BB8]
         """).strip()
 
         self.assert_ir(src, expected_ir)
@@ -944,7 +944,17 @@ class TestDCE(base.TestBase):
                 %2_v1 = bar()
                 cmp(%2_v1, 0)
                 if CF == 0 then jmp BB7 else jmp BB8
-            ; succ: [BB8, BB7]
+            ; succ: [BB7, BB8]
+
+            ; pred: [BB3]
+            BB8: ; [merge]
+                jmp BB4
+            ; succ: [BB4]
+
+            ; pred: [BB8]
+            BB4: ; [uncond loop latch]
+                jmp BB3
+            ; succ: [BB3]
 
             ; pred: [BB3]
             BB7: ; [then]
@@ -963,17 +973,7 @@ class TestDCE(base.TestBase):
 
             ; pred: [BB6]
             BB1: ; [exit]
-            ; succ: []
-
-            ; pred: [BB3]
-            BB8: ; [merge]
-                jmp BB4
-            ; succ: [BB4]
-
-            ; pred: [BB8]
-            BB4: ; [uncond loop latch]
-                jmp BB3
-            ; succ: [BB3] 
+            ; succ: [] 
         """).strip()
 
         self.assert_ir(src, expected_ir)
@@ -1023,7 +1023,17 @@ class TestDCE(base.TestBase):
                 %6_v1 = bar()
                 cmp(%6_v1, 0)
                 if CF == 0 then jmp BB7 else jmp BB8
-            ; succ: [BB8, BB7]
+            ; succ: [BB7, BB8]
+
+            ; pred: [BB3]
+            BB8: ; [merge]
+                jmp BB4
+            ; succ: [BB4]
+
+            ; pred: [BB8]
+            BB4: ; [uncond loop latch]
+                jmp BB3
+            ; succ: [BB3]
 
             ; pred: [BB3]
             BB7: ; [then]
@@ -1042,17 +1052,8 @@ class TestDCE(base.TestBase):
 
             ; pred: [BB6]
             BB1: ; [exit]
-            ; succ: []
-
-            ; pred: [BB3]
-            BB8: ; [merge]
-                jmp BB4
-            ; succ: [BB4]
-
-            ; pred: [BB8]
-            BB4: ; [uncond loop latch]
-                jmp BB3
-            ; succ: [BB3] """).strip()
+            ; succ: [] 
+        """).strip()
 
         self.assert_ir(src, expected_ir)
 
@@ -1084,12 +1085,7 @@ class TestDCE(base.TestBase):
                 %4_v1 = foo((<~)a_v1)
                 cmp(1, 0)
                 if CF == 0 then jmp BB2 else jmp BB3
-            ; succ: [BB3, BB2]
-
-            ; pred: [BB0]
-            BB2: ; [then]
-                jmp BB3
-            ; succ: [BB3]
+            ; succ: [BB2, BB3]
 
             ; pred: [BB0, BB2]
             BB3: ; [merge]
@@ -1099,6 +1095,11 @@ class TestDCE(base.TestBase):
             ; pred: [BB3]
             BB1: ; [exit]
             ; succ: []
+
+            ; pred: [BB0]
+            BB2: ; [then]
+                jmp BB3
+            ; succ: [BB3]        
         """).strip()
 
         self.assert_ir(src, expected_ir)

@@ -11,6 +11,7 @@ from src.ssa.cfg import (
     InstArrayInit,
     InstAssign,
     Instruction,
+    LoopInfo,
     OpLoad,
     Operation,
     OpBinary,
@@ -21,14 +22,6 @@ from src.ssa.cfg import (
     SSAConstant,
 )
 from src.ssa.dominance import DominatorTree, compute_dominator_tree
-
-
-@dataclass
-class LoopInfo:
-    header: BasicBlock
-    preheader: BasicBlock
-    blocks: set[BasicBlock]
-    exit_block: BasicBlock
 
 
 class LICM(OptimizationPass):
@@ -43,8 +36,8 @@ class LICM(OptimizationPass):
         self.cfg = cfg
         self.dom_tree = compute_dominator_tree(cfg)
         self._index_definitions(cfg)
-        loops = self._find_loops(cfg)
-        for loop in sorted(loops, key=lambda x: len(x.blocks)):
+        self._collect_loop_blocks(cfg)
+        for loop in cfg.loops_info:
             self._hoist_loop(loop)
 
     def _index_definitions(self, cfg: CFG):
@@ -75,42 +68,17 @@ class LICM(OptimizationPass):
                     def_key = (inst.lhs.name, inst.lhs.version)
                     self.def_to_block[def_key] = bb
 
-    def _find_loops(self, cfg: CFG) -> list[LoopInfo]:
-        assert self.dom_tree is not None
-        loops: list[LoopInfo] = []
-        for bb in cfg:
-            for succ in bb.succ:
-                if not self._dominates(succ, bb):
+    def _collect_loop_blocks(self, cfg: CFG):
+        for loop_info in cfg.loops_info:
+            q = [loop_info.tail]
+            loop_blocks: set[BasicBlock] = set([loop_info.header])
+            while len(q) > 0:
+                t = q.pop()
+                if t in loop_blocks:
                     continue
-
-                # one back edge and one forward edge for a conditional for loop
-                # one back edge for the unconditional one
-                assert len(bb.succ) <= 2
-
-                loop_blocks = self._collect_loop_blocks(header=succ, tail=bb)
-                preheaders = [pred for pred in succ.preds if pred not in loop_blocks]
-                assert len(preheaders) == 1
-
-                if len(bb.succ) == 2:
-                    loops.append(
-                        LoopInfo(
-                            header=succ,
-                            preheader=preheaders[0],
-                            blocks=loop_blocks,
-                            exit_block=bb.succ[0] if bb.succ[0] != succ else bb.succ[1],
-                        )
-                    )
-                elif len(bb.succ) == 1:
-                    loops.append(
-                        LoopInfo(
-                            header=succ,
-                            preheader=preheaders[0],
-                            blocks=loop_blocks,
-                            exit_block=bb.succ[0],
-                        )
-                    )
-
-        return loops
+                loop_blocks.add(t)
+                q.extend((p for p in t.preds if p not in loop_blocks))
+            loop_info.blocks = loop_blocks
 
     def _dominates(self, a: BasicBlock, b: BasicBlock) -> bool:
         assert self.dom_tree is not None
@@ -118,19 +86,6 @@ class LICM(OptimizationPass):
         if doms is None:
             return False
         return a in doms
-
-    def _collect_loop_blocks(
-        self, header: BasicBlock, tail: BasicBlock
-    ) -> set[BasicBlock]:
-        seen_loop_blocks = {header}
-        stack = [tail]
-        while stack:
-            node = stack.pop()
-            if node in seen_loop_blocks:
-                continue
-            seen_loop_blocks.add(node)
-            stack.extend(node.preds)
-        return seen_loop_blocks
 
     def _hoist_loop(self, loop: LoopInfo):
         assert self.dom_tree is not None
@@ -149,7 +104,7 @@ class LICM(OptimizationPass):
                 new_insts: list[Instruction] = []
                 for inst in bb.instructions:
                     if self._is_hoistable(
-                        inst, bb, loop.blocks, loop.exit_block, invariant_defs
+                        inst, bb, loop.blocks, loop.tail, invariant_defs
                     ):
                         assert isinstance(inst, InstAssign)
                         hoisted.append(inst)
@@ -181,7 +136,7 @@ class LICM(OptimizationPass):
         inst: Instruction,
         inst_block: BasicBlock,
         loop_blocks: set[BasicBlock],
-        exit_block: BasicBlock,
+        tail_block: BasicBlock,
         invariant_defs: set[tuple[str, int]],
     ) -> bool:
         if not isinstance(inst, InstAssign):
@@ -191,7 +146,7 @@ class LICM(OptimizationPass):
         if isinstance(rhs, OpCall) or isinstance(rhs, OpLoad):
             return False
 
-        if not self._dominates(inst_block, exit_block):
+        if not self._dominates(inst_block, tail_block):
             return False
 
         assert inst.lhs.version is not None

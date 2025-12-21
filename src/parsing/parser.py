@@ -418,7 +418,7 @@ class Parser:
             return LValueIdentifier(line, column, base_name)
 
     def parse_condition(self) -> Condition:
-        """CONDITION ::= if "(" EXPR ")" BLOCK [else BLOCK]"""
+        """CONDITION ::= "if" "(" EXPR ")" BLOCK ["else" BLOCK]"""
         if_token = self.expect(TokenType.IF)
         line = if_token.line
         column = if_token.column
@@ -437,7 +437,7 @@ class Parser:
         return Condition(line, column, condition, then_block, else_block)
 
     def parse_loop(self) -> Union["ForLoop", "UnconditionalLoop"]:
-        """LOOP ::= for BLOCK | for "(" ASSIGNMENT ("," ASSIGNMENT)* ";" EXPR ";" REASSIGNMENT ("," REASSIGNMENT)* ")" BLOCK"""
+        """LOOP ::= "for" BLOCK | "for" "(" ASSIGNMENT ("," ASSIGNMENT)* ";" EXPR ";" REASSIGNMENT ("," REASSIGNMENT)* ")" BLOCK"""
         for_token = self.expect(TokenType.FOR)
         line = for_token.line
         column = for_token.column
@@ -489,7 +489,7 @@ class Parser:
         return args
 
     def parse_return(self) -> Return:
-        """RETURN ::= return [EXPR]"""
+        """RETURN ::= "return" [EXPR]"""
         return_token = self.expect(TokenType.RETURN)
         line = return_token.line
         column = return_token.column
@@ -502,7 +502,7 @@ class Parser:
         return Return(line, column, value)
 
     def parse_break(self) -> Break:
-        """BREAK ::= break ;"""
+        """BREAK ::= "break" ";" """
         break_token = self.expect(TokenType.BREAK)
         line = break_token.line
         column = break_token.column
@@ -511,7 +511,7 @@ class Parser:
         return Break(line, column)
 
     def parse_continue(self) -> Continue:
-        """CONTINUE ::= continue ";" """
+        """CONTINUE ::= "continue" ";" """
         continue_token = self.expect(TokenType.CONTINUE)
         line = continue_token.line
         column = continue_token.column
@@ -596,7 +596,15 @@ class Parser:
         return left
 
     def parse_expr_unary(self) -> Expression:
-        """EXPR_UNARY ::= EXPR_ATOM | "-" EXPR_UNARY | "!" EXPR_UNARY"""
+        """EXPR_UNARY ::= EXPR_ATOM | "+" EXPR_UNARY | "-" EXPR_UNARY | "!" EXPR_UNARY"""
+        if self.check(TokenType.PLUS):
+            plus_token = self.expect(TokenType.PLUS)
+            operand = self.parse_expr_unary()
+            return UnaryOp(plus_token.line, plus_token.column, "+", operand)
+        elif self.check(TokenType.MINUS):
+            minus_token = self.expect(TokenType.MINUS)
+            operand = self.parse_expr_unary()
+            return UnaryOp(minus_token.line, minus_token.column, "-", operand)
         if self.check(TokenType.MINUS):
             minus_token = self.expect(TokenType.MINUS)
             operand = self.parse_expr_unary()

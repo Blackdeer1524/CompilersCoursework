@@ -30,7 +30,7 @@ class DCE(OptimizationPass):
     def __init__(self):
         self.cfg: Optional[CFG] = None
         # Def-use
-        self.defs: dict[tuple[str, int], Instruction | InstPhi] = {}
+        self.defs: dict[tuple[str, int], tuple[Instruction | InstPhi, int]] = {}
         self.uses: dict[tuple[str, int], set[Instruction | InstPhi]] = defaultdict(set)
         self.inst_block: dict[Instruction | InstPhi, BasicBlock] = {}
         # Liveness
@@ -41,8 +41,8 @@ class DCE(OptimizationPass):
     def run(self, cfg: CFG):
         self.cfg = cfg
         self._build_metadata(cfg)
-        self._mark_and_sweep(cfg)
-        self._rewrite(cfg)
+        self._mark(cfg)
+        self._sweep(cfg)
 
     def _build_metadata(self, cfg: CFG):
         for bb in cfg:
@@ -50,24 +50,24 @@ class DCE(OptimizationPass):
             for phi in bb.phi_nodes.values():
                 self.inst_block[phi] = bb
                 assert phi.lhs.version is not None
-                self.defs[(phi.lhs.name, phi.lhs.version)] = phi
+                self.defs[(phi.lhs.name, phi.lhs.version)] = (phi, -1)
 
                 for _, v in phi.rhs.items():
                     if isinstance(v, SSAVariable) and v.version is not None:
                         self.uses[(v.name, v.version)].add(phi)
 
             # Instructions
-            for inst in bb.instructions:
+            for i, inst in enumerate(bb.instructions):
                 self.inst_block[inst] = bb
                 match inst:
                     case InstArrayInit(lhs):
-                        self.defs[(lhs.name, unwrap(lhs.version))] = inst
+                        self.defs[(lhs.name, unwrap(lhs.version))] = (inst, i)
                     case InstAssign(lhs, rhs):
-                        self.defs[(lhs.name, unwrap(lhs.version))] = inst
+                        self.defs[(lhs.name, unwrap(lhs.version))] = (inst, i)
                         for use_key in self._iter_ssavars(rhs):
                             self.uses[(use_key.name, unwrap(use_key.version))].add(inst)
                     case InstGetArgument(lhs, _):
-                        self.defs[(lhs.name, unwrap(lhs.version))] = inst
+                        self.defs[(lhs.name, unwrap(lhs.version))] = (inst, i)
                     case InstCmp(left=left, right=right):
                         for use_key in self._iter_uses_from_vals([left, right]):  # type: ignore[name-defined]
                             self.uses[(use_key.name, unwrap(use_key.version))].add(inst)
@@ -210,13 +210,13 @@ class DCE(OptimizationPass):
                     case _:
                         pass
 
-    def _mark_and_sweep(self, cfg: CFG):
+    def _mark(self, cfg: CFG):
         var_work: deque[tuple[str, int]] = deque()
         self._seed_roots(cfg, var_work)
 
         while var_work:
             key = var_work.popleft()
-            def_inst = self.defs[key]
+            def_inst, def_idx = self.defs[key]
             if def_inst in self.live_insts:
                 continue
 
@@ -228,17 +228,17 @@ class DCE(OptimizationPass):
                     ...
                 case InstAssign(_, rhs):
                     for op_key in self._iter_ssavars(rhs):
-                        self.mark_value_live(bb, -1, op_key, var_work)
+                        self.mark_value_live(bb, def_idx, op_key, var_work)
                 case InstPhi(_, rhs):
                     for _, v in rhs.items():
-                        self.mark_value_live(bb, -1, v, var_work)
+                        self.mark_value_live(bb, def_idx, v, var_work)
                 case _:
                     raise RuntimeError(
                         f"unexpected definition instruction type: {type(def_inst)}"
                     )
 
     # ---------- Rewriting ----------
-    def _rewrite(self, cfg: CFG):
+    def _sweep(self, cfg: CFG):
         # Remove dead PHI nodes
         for bb in cfg:
             to_remove = []

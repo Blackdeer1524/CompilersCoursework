@@ -3,6 +3,8 @@ from src.ssa.cfg import CFG, BasicBlock
 from collections import defaultdict
 from dataclasses import dataclass
 
+from src.ssa.helpers import unwrap
+
 
 @dataclass
 class DominatorTree:
@@ -125,15 +127,7 @@ def compute_dominance_frontier_graph(
     DF: dict[BasicBlock, set[BasicBlock]] = defaultdict(set)
     for node in cfg:
         for pred in node.preds:
-            if pred in idom_tree.dominators[node]:
-                continue
-
-            DF[pred].add(node)
-            d = idom_tree.idom[pred]
-            assert d is not None
-
-            while d != idom_tree.idom[node]:
-                DF[d].add(node)
-                d = idom_tree.idom[d]
-                assert d is not None
+            while pred != idom_tree.idom[node]:
+                DF[pred].add(node)
+                pred = unwrap(idom_tree.idom[pred])
     return DF
