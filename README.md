@@ -16,6 +16,12 @@
 - Управление флагами: `--disable-ssa`, `--disable-licm`, `--disable-sccp`, `--disable-dce`, `--disable-idom-tree`, `--disable-df`. Все флаги оставьте включёнными для полного оптимизирующего конвейера.
 - Тесты: `pytest tests` (см. наборы для лексера/парсера/семантики/SSA/оптимизаций).
 
+## Пример визуализации графа
+
+![](./assets/graph.svg)
+
+`make graph "FLAGS=--disable-df --disable-idom-tree`
+
 ## Пример кода
 
 ```
@@ -32,7 +38,7 @@ func main() -> void {
     arr[0] = 42;
     matrix[i][j] = 100;
 
-    for { /* unconditional */ }
+    for { ... }  // unconditional
     for (let i int = 0; i < 10; i = i + 1) { }
 
     if (i <= 10 || i > 40 && i + 2 < i - 1) { ... } else { ... }
