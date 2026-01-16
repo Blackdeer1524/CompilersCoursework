@@ -1,6 +1,6 @@
 # SSA-based compiler
 
-Небольшой оптимизирующий компилятор с промежуточным представллением в SSA форм.
+Небольшой оптимизирующий компилятор с промежуточным представллением в SSA форме.
 
 Пайплайн: лексер → парсер (AST) → семантический анализ → построение CFG → проставление SSA → оптимизации → вывод IR или CFG в Graphviz.
 
@@ -52,6 +52,8 @@ func main() -> void {
 
 ```
 PROGRAMM ::= FUNCTION* EOF
+
+TYPE ::= int | ("[" INTEGER "]")+ int | void
 
 FUNCTION ::= "func" IDENTIFIER "(" ARG_LIST ")" "->" TYPE "{" BLOCK "}"
 

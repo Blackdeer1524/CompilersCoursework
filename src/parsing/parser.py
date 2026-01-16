@@ -1,6 +1,6 @@
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import Optional, List, Union, TYPE_CHECKING
+from typing import Optional, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .semantic import SymbolTable
@@ -20,14 +20,14 @@ class Program(ASTNode):
     line: int = field(init=False, default=1)
     column: int = field(init=False, default=1)
 
-    functions: List["Function"]
+    functions: list["Function"]
     symbol_table: Optional["SymbolTable"] = None
 
 
 @dataclass
 class Function(ASTNode):
     name: str
-    args: List["Argument"]
+    args: list["Argument"]
     return_type: str
     body: "Block"
 
@@ -79,7 +79,7 @@ class UnconditionalLoop(Statement):
 @dataclass
 class FunctionCall(Statement):
     name: str
-    args: List["Expression"]
+    args: list["Expression"]
 
 
 @dataclass
@@ -101,7 +101,7 @@ class Continue(Statement):
 
 @dataclass
 class Block:
-    statements: List[Statement]
+    statements: list[Statement]
     symbol_table: Optional["SymbolTable"] = None
 
 
@@ -136,13 +136,13 @@ class IntegerLiteral(Expression):
 @dataclass
 class CallExpression(Expression):
     name: str
-    args: List[Expression]
+    args: list[Expression]
 
 
 @dataclass
 class ArrayAccess(Expression):
     base: Identifier
-    indices: List[Expression]
+    indices: list[Expression]
 
 
 @dataclass
@@ -163,7 +163,7 @@ class LValueIdentifier(LValue):
 @dataclass
 class LValueArrayAccess(LValue):
     base: str
-    indices: List[Expression]
+    indices: list[Expression]
 
 
 class ParseError(Exception):
@@ -242,7 +242,7 @@ class Parser:
 
         return Function(line, column, name, args, return_type, body)
 
-    def parse_arg_list(self) -> List[Argument]:
+    def parse_arg_list(self) -> list[Argument]:
         """ARG_LIST ::= EPSILON | ARG ("," ARG)*"""
         args = []
         if self.check(TokenType.IDENTIFIER):
@@ -288,7 +288,7 @@ class Parser:
         else:
             return base_type
 
-    def parse_statements(self) -> List[Statement]:
+    def parse_statements(self) -> list[Statement]:
         """STATEMENTS ::= STATEMENT*"""
         statements = []
         while self.current_token and not self.check(TokenType.RBRACE):
@@ -296,7 +296,7 @@ class Parser:
         return statements
 
     def parse_statement(self) -> Statement:
-        """STATEMENT ::= ASSIGNMENT ";" | REASSIGNMENT ";" | CONDITION | LOOP | FUNCTION_CALL ";" | RETURN ";" | BLOCK"""
+        """STATEMENT ::= ASSIGNMENT ";" | REASSIGNMENT ";" | CONDITION | LOOP | FUNCTION_CALL ";" | RETURN ";" """
         if not self.current_token:
             raise ParseError("Unexpected end of file")
 
@@ -476,7 +476,7 @@ class Parser:
 
         return FunctionCall(line, column, name, args)
 
-    def parse_expr_list(self) -> List[Expression]:
+    def parse_expr_list(self) -> list[Expression]:
         """EXPR_LIST ::= EPSILON | EXPR ("," EXPR)*"""
         args = []
         if not self.check(TokenType.RPAREN):
